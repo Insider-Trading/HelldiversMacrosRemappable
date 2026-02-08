@@ -1,0 +1,23 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Helldivers Macro EXE",
+            "type": "shell",
+            "command": "pyinstaller",
+            "args": [
+                "--noconfirm",
+                "--onefile",
+                "--windowed",
+                "--uac-admin",
+                "--add-data", "assets:assets",
+                "--add-data", "stratagem_data.py:.",
+                "--add-data", "theme_dark_default.qss:.",
+                "--add-data", "theme_dark_blue.qss:.",
+                "--add-data", "theme_dark_red.qss:.",
+                "main.py"
+            ],
+            "group": { "kind": "build", "isDefault": true }
+        }
+    ]
+}
