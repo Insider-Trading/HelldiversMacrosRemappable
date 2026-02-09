@@ -839,6 +839,17 @@ class StratagemApp(QMainWindow):
 
     def closeEvent(self, event):
         """Minimize to tray when closed if setting enabled, otherwise quit"""
+        if self.has_unsaved_changes():
+            prompt = "You have unsaved changes. Close anyway?"
+            if QMessageBox.question(
+                self,
+                "Unsaved Changes",
+                prompt,
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            ) != QMessageBox.StandardButton.Yes:
+                event.ignore()
+                return
         if self.global_settings.get("minimize_to_tray", True):
             self.hide()
             event.ignore()
