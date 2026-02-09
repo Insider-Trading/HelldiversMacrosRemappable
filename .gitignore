@@ -61,3 +61,6 @@ env/
 # App-generated data
 general.json
 profiles/*.json
+
+# Local launchers
+Helldivers 2.bat
