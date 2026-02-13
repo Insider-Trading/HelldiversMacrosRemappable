@@ -2,7 +2,7 @@ import sys, json, keyboard, time, os, winsound
 from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel, 
                              QHBoxLayout, QVBoxLayout, QScrollArea, QLineEdit, 
                              QPushButton, QFileDialog, QMessageBox, QDialog,
-                             QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle)
+                             QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle, QSizePolicy)
 from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QObject, QTimer, QRect, QEvent
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtGui import QDrag, QFont, QPixmap, QAction, QIcon
@@ -529,11 +529,15 @@ class StratagemApp(QMainWindow):
         central_widget = QWidget()
         main_vbox = QVBoxLayout(central_widget)
         main_vbox.setContentsMargins(0, 0, 0, 0)
-        main_vbox.setSpacing(6)
+        main_vbox.setSpacing(0)
         self.setCentralWidget(central_widget)
 
-        # Top toolbar with menu and controls
-        toolbar = QHBoxLayout()
+        # Top bar with menu and controls
+        top_bar = QWidget()
+        top_bar.setObjectName("top_bar")
+        top_bar_layout = QHBoxLayout(top_bar)
+        top_bar_layout.setContentsMargins(8, 6, 8, 6)
+        top_bar_layout.setSpacing(8)
         
         # Left sidebar: Settings and Latency (vertical)
         left_sidebar = QVBoxLayout()
@@ -560,11 +564,9 @@ class StratagemApp(QMainWindow):
         # keep the slider around for logic but hide it from the toolbar; settings dialog will control it
         self.speed_slider.setVisible(False)
         left_sidebar.addWidget(self.speed_btn)
-        
-        toolbar.addLayout(left_sidebar)
 
-        # push action buttons to the right
-        toolbar.addStretch(1)
+        top_bar_layout.addLayout(left_sidebar)
+
 
         # Right sidebar: Profile Select and Action Buttons (vertical)
         right_sidebar = QVBoxLayout()
@@ -595,14 +597,23 @@ class StratagemApp(QMainWindow):
         self.update_undo_state()  # Initialize undo button state
         right_sidebar.addLayout(btn_layout)
         
-        toolbar.addLayout(right_sidebar)
-        main_vbox.addLayout(toolbar)
+        top_bar_layout.addLayout(right_sidebar)
+        main_vbox.addWidget(top_bar)
+
+        # Status messages between top bar and content
+        self.status_label = QLabel("")
+        self.status_label.setObjectName("status_label")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_label.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        main_vbox.addWidget(self.status_label)
+        main_vbox.addSpacing(6)
 
         content = QHBoxLayout()
         
         # Create a container for search and scroll area
         side_container = QWidget()
         side_container.setObjectName("search_scroll_container")
+        self.side_container = side_container
         side = QVBoxLayout(side_container)
         side.setSpacing(0)  # Remove gap between search and list
         side.setContentsMargins(0, 0, 0, 0)  # Remove margins
@@ -624,16 +635,19 @@ class StratagemApp(QMainWindow):
         self.update_search_clear_visibility(self.search.text())
         side.addWidget(self.search)
 
-        self.scroll = QScrollArea()
-        self.scroll.setObjectName("icon_scroll")
+        self.icon_scroll = QScrollArea()
+        self.icon_scroll.setObjectName("icon_scroll")
         self.scroll_widget = QWidget()
         self.scroll_layout = QVBoxLayout(self.scroll_widget)
         self.scroll_layout.setContentsMargins(0, 0, 0, 0)
+        self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.icon_widgets = []
         for name in sorted(STRATAGEMS.keys()):
             w = DraggableIcon(name); self.icon_widgets.append(w); self.scroll_layout.addWidget(w)
-        self.scroll.setWidget(self.scroll_widget); self.scroll.setWidgetResizable(True)
-        side.addWidget(self.scroll)
+        self.icon_scroll.setWidget(self.scroll_widget); self.icon_scroll.setWidgetResizable(True)
+        self.icon_scroll.viewport().installEventFilter(self)
+        side.addWidget(self.icon_scroll)
+        QTimer.singleShot(0, self.update_search_width)
 
         grid = QGridLayout()
         grid.setSpacing(12)
@@ -650,19 +664,32 @@ class StratagemApp(QMainWindow):
 
         content.addWidget(side_container); content.addLayout(grid); main_vbox.addLayout(content)
 
-        self.status_label = QLabel(self)
-        self.status_label.setObjectName("status_label")
-        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.status_label.hide()
+        # Bottom bar with macro toggle
+        bottom_bar = QWidget()
+        bottom_bar.setObjectName("bottom_bar")
+        bottom_bar_layout = QHBoxLayout(bottom_bar)
+        bottom_bar_layout.setContentsMargins(8, 6, 8, 12)
+        bottom_bar_layout.setSpacing(8)
+        self.status_text_label = QLabel("Status: Disabled")
+        self.status_text_label.setObjectName("macros_status_label")
+        self.status_text_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        bottom_bar_layout.addWidget(self.status_text_label, 1)
+        self.macros_toggle = QCheckBox("")
+        self.macros_toggle.setObjectName("macros_toggle")
+        self.macros_toggle.toggled.connect(lambda checked: self.set_macros_enabled(checked))
+        bottom_bar_layout.addWidget(self.macros_toggle)
+        main_vbox.addWidget(bottom_bar)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self.position_status_label()
         self.update_search_clear_position()
+        self.update_search_width()
 
     def eventFilter(self, source, event):
         if source == self.search and event.type() == QEvent.Type.Resize:
             self.update_search_clear_position()
+        if hasattr(self, "icon_scroll") and source == self.icon_scroll.viewport() and event.type() == QEvent.Type.Resize:
+            self.update_search_width()
         return super().eventFilter(source, event)
 
     def update_search_clear_visibility(self, text):
@@ -683,19 +710,65 @@ class StratagemApp(QMainWindow):
         y = (self.search.rect().height() - btn_size.height()) // 2
         self.search_clear_btn.move(x, y)
 
-    def position_status_label(self):
-        label_width = 300
-        label_height = 40
-        x = (self.width() - label_width) // 2
-        y = self.height() - label_height - 20
-        self.status_label.setGeometry(x, y, label_width, label_height)
+    def update_search_width(self):
+        if not hasattr(self, "icon_scroll") or not hasattr(self, "search"):
+            return
+        scroll_width = self.icon_scroll.width()
+        if scroll_width <= 0:
+            return
+        placeholder_width = self.search.fontMetrics().horizontalAdvance(self.search.placeholderText())
+        min_width = placeholder_width + 28
+        extra_width = 1
+        target_width = max(scroll_width, min_width) + extra_width
+        if hasattr(self, "side_container"):
+            self.side_container.setMinimumWidth(target_width)
+        self.search.setFixedWidth(target_width)
+        self.icon_scroll.setFixedWidth(target_width)
 
     def show_status(self, text, duration=2500):
-        self.status_label.setText(text)
-        self.position_status_label()
+        self.status_label.setText(text.upper())
         self.status_label.show()
         self.status_label.raise_()
-        QTimer.singleShot(duration, self.status_label.hide)
+        QTimer.singleShot(duration, lambda: self.status_label.setText(""))
+
+    def update_macro_toggle_ui(self):
+        enabled = self.global_settings.get("macros_enabled", False)
+        if hasattr(self, "macros_toggle"):
+            self.macros_toggle.blockSignals(True)
+            self.macros_toggle.setChecked(enabled)
+            self.macros_toggle.blockSignals(False)
+        if hasattr(self, "status_text_label"):
+            self.status_text_label.setText("Status: Enabled" if enabled else "Status: Disabled")
+            self.status_text_label.setProperty("state", "enabled" if enabled else "disabled")
+            self.status_text_label.style().unpolish(self.status_text_label)
+            self.status_text_label.style().polish(self.status_text_label)
+        if hasattr(self, "tray_toggle_action"):
+            self.tray_toggle_action.blockSignals(True)
+            self.tray_toggle_action.setChecked(enabled)
+            self.tray_toggle_action.setText("Disable Macros" if enabled else "Enable Macros")
+            self.tray_toggle_action.blockSignals(False)
+        if hasattr(self, "tray_icon"):
+            state = "ON" if enabled else "OFF"
+            self.tray_icon.setToolTip(f"Helldivers Numpad Macros ({state})")
+
+    def set_macros_enabled(self, enabled, notify=True):
+        self.global_settings["macros_enabled"] = bool(enabled)
+        self.save_global_settings()
+        if enabled:
+            self.inject_all()
+            if notify:
+                self.show_status("Macros enabled")
+        else:
+            try:
+                keyboard.unhook_all()
+            except:
+                pass
+            if notify:
+                self.show_status("Macros disabled")
+        self.update_macro_toggle_ui()
+
+    def sync_macro_hook_state(self, notify=False):
+        self.set_macros_enabled(self.global_settings.get("macros_enabled", False), notify=notify)
 
     def load_global_settings(self):
         """Load global settings from general.json"""
@@ -704,10 +777,14 @@ class StratagemApp(QMainWindow):
                 with open("general.json", "r") as f:
                     self.global_settings = json.load(f)
             else:
-                self.global_settings = {"latency": 20}
+                self.global_settings = {"latency": 20, "macros_enabled": False}
                 self.save_global_settings()
         except Exception:
-            self.global_settings = {"latency": 20}
+            self.global_settings = {"latency": 20, "macros_enabled": False}
+
+        if "macros_enabled" not in self.global_settings:
+            self.global_settings["macros_enabled"] = False
+            self.save_global_settings()
 
     def save_global_settings(self):
         """Save global settings to general.json"""
@@ -745,6 +822,9 @@ class StratagemApp(QMainWindow):
         if hasattr(self, 'app_icon') and self.app_icon:
             self.tray_icon.setIcon(self.app_icon)
         tray_menu = QMenu()
+        self.tray_toggle_action = tray_menu.addAction("Enable Macros")
+        self.tray_toggle_action.setCheckable(True)
+        self.tray_toggle_action.toggled.connect(lambda checked: self.set_macros_enabled(checked))
         show_action = tray_menu.addAction("Show")
         show_action.triggered.connect(self.showNormal)
         tray_menu.addSeparator()
@@ -754,6 +834,7 @@ class StratagemApp(QMainWindow):
         # Click on tray icon to toggle window visibility
         self.tray_icon.activated.connect(self.toggle_window_visibility)
         self.tray_icon.show()
+        self.update_macro_toggle_ui()
 
     def toggle_window_visibility(self, reason):
         """Toggle window visibility when tray icon is clicked"""
@@ -791,8 +872,7 @@ class StratagemApp(QMainWindow):
         current = self.profile_box.currentText()
         if current == "Create new profile":
             for slot in self.slots.values(): slot.clear_slot()
-            try: keyboard.unhook_all()
-            except: pass
+            self.sync_macro_hook_state()
             self.saved_state = None
             self.show_status("FRESH PROFILE READY")
         else: 
@@ -812,12 +892,11 @@ class StratagemApp(QMainWindow):
                 self.save_to_file(os.path.join(PROFILES_DIR, f"{clean_name}.json"))
                 self.refresh_profiles()
                 self.profile_box.setCurrentText(clean_name)
-                self.show_status("PROFILE SAVED & INJECTED")
+                self.show_status("PROFILE SAVED")
             else: return
         else: 
             self.save_to_file(os.path.join(PROFILES_DIR, f"{current}.json"))
-            self.show_status("PROFILE SAVED & INJECTED")
-        self.inject_all()
+            self.show_status("PROFILE SAVED")
         self.save_current_state()  # Update saved state after saving
         self.update_undo_state()
 
@@ -836,7 +915,7 @@ class StratagemApp(QMainWindow):
                 mappings = data.get("mappings", {})
                 for code, strat in mappings.items():
                     if code in self.slots: self.slots[code].assign(strat)
-            self.inject_all()
+            self.sync_macro_hook_state()
             self.save_current_state()  # Save the loaded state
 
     def inject_all(self):

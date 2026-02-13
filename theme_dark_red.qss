@@ -6,7 +6,10 @@ QSlider::groove:horizontal { border: 1px solid #444; height: 8px; background: #1
 QSlider::handle:horizontal { background: #ff4444; border: 1px solid #ff4444; width: 18px; height: 18px; margin: -5px 0; border-radius: 9px; }
 
 /* Status label */
-QLabel#status_label { color: #ff4444; font-weight: bold; background: rgba(17, 17, 17, 230); padding: 10px; border: 1px solid #ff4444; border-radius: 5px; }
+QLabel#status_label { color: #ff4444; font-weight: bold; background: rgba(17, 17, 17, 230); padding: 10px; border: 1px solid #ff4444; border-radius: 0px; margin-top: 0px; }
+QLabel#macros_status_label { font-weight: 800; letter-spacing: 1px; text-transform: uppercase; background: rgba(14, 14, 14, 230); border-radius: 6px; padding: 6px 10px; }
+QLabel#macros_status_label[state="enabled"] { color: #66ff66; border: 1px solid #66ff66; }
+QLabel#macros_status_label[state="disabled"] { color: #888; border: 1px solid #555; }
 
 /* Sidebar icons */
 QWidget[role="icon"] { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; min-width: 70px; min-height: 70px; max-width: 70px; max-height: 70px; }
@@ -24,9 +27,20 @@ QComboBox#profile_box_styled::drop-down { subcontrol-origin: border; subcontrol-
 QPushButton#menu_button { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; color: #ff4444; font-weight: bold; padding: 4px 8px; margin: 0px; }
 QPushButton#menu_button:hover { background: #252525; border: 1px solid #ff4444; }
 
+/* Top and bottom bars */
+QWidget#top_bar, QWidget#bottom_bar { background: #0b0b0b; border: 1px solid #222; }
+QWidget#top_bar { border-left: none; border-right: none; border-top: none; }
+QWidget#bottom_bar { border-left: none; border-right: none; border-bottom: none; }
+
 /* Latency button */
 QPushButton#speed_btn { font-size: 8pt; color: #888; background: transparent; border: none; text-align: left; margin: 0px; }
 QPushButton#speed_btn:hover { color: #ff4444; }
+
+/* Macro toggle */
+QCheckBox#macros_toggle { spacing: 8px; color: #ff4444; }
+QCheckBox#macros_toggle::indicator { width: 56px; height: 28px; }
+QCheckBox#macros_toggle::indicator:checked { image: url(assets/toggle_on.svg); }
+QCheckBox#macros_toggle::indicator:unchecked { image: url(assets/toggle_off.svg); }
 
 /* Action buttons (Save, Test, Clear) */
 QPushButton[role="action"] { background: #222; border: 1px solid #444; border-radius: 6px; font-size: 16pt; min-width: 40px; min-height: 40px; max-width: 40px; max-height: 40px; }
