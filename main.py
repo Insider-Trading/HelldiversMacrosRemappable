@@ -1,4 +1,4 @@
-import sys, json, keyboard, time, os, winsound, re
+import sys, json, keyboard, time, os, winsound, re, ctypes
 from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel, 
                              QHBoxLayout, QVBoxLayout, QScrollArea, QLineEdit, 
                              QPushButton, QFileDialog, QMessageBox, QDialog,
@@ -28,6 +28,29 @@ comm = Comm()
 
 def normalize(name):
     return name.lower().replace(" ", "").replace("_", "").replace("-", "")
+
+def is_admin():
+    """Check if the current process has administrator privileges"""
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def run_as_admin():
+    """Relaunch the current script with administrator privileges"""
+    try:
+        if getattr(sys, 'frozen', False):
+            # Running as compiled executable
+            script = sys.executable
+        else:
+            # Running as Python script
+            script = os.path.abspath(sys.argv[0])
+        
+        params = ' '.join(sys.argv[1:])
+        ctypes.windll.shell32.ShellExecuteW(None, "runas", script, params, None, 1)
+        return True
+    except:
+        return False
 
 def find_svg_path(name):
     alias_map = {
@@ -314,6 +337,19 @@ class SettingsWindow(QDialog):
         windows_desc.setStyleSheet("color: #aaa; font-size: 11px; margin-top: 10px;")
         windows_layout.addWidget(windows_desc)
         
+        # Admin privileges checkbox
+        self.require_admin_check = QCheckBox("Require administrator privileges")
+        self.require_admin_check.setStyleSheet("color: #ddd; padding: 8px; margin-top: 15px;")
+        if self.parent_app:
+            self.require_admin_check.setChecked(self.parent_app.global_settings.get("require_admin", False))
+        windows_layout.addWidget(self.require_admin_check)
+        
+        admin_desc = QLabel("When enabled, the application will request administrator privileges on startup.\nThis is required if Helldivers 2 runs with admin rights. Application will restart to apply changes.")
+        admin_desc.setObjectName("settings_description")
+        admin_desc.setWordWrap(True)
+        admin_desc.setStyleSheet("color: #aaa; font-size: 11px; margin-top: 10px;")
+        windows_layout.addWidget(admin_desc)
+        
         windows_layout.addStretch(1)
         self.content_stack.addWidget(windows_widget)
         
@@ -344,6 +380,8 @@ class SettingsWindow(QDialog):
             latency_value = self.spin.value()
             old_theme = self.parent_app.global_settings.get("theme", "Dark (Default)")
             new_theme = self.theme_combo.currentText()
+            old_require_admin = self.parent_app.global_settings.get("require_admin", False)
+            new_require_admin = self.require_admin_check.isChecked()
             
             self.parent_app.speed_slider.setValue(latency_value)
             self.parent_app.global_settings["latency"] = latency_value
@@ -352,12 +390,32 @@ class SettingsWindow(QDialog):
             self.parent_app.global_settings["visual_enabled"] = self.visual_check.isChecked()
             self.parent_app.global_settings["theme"] = new_theme
             self.parent_app.global_settings["minimize_to_tray"] = self.minimize_tray_check.isChecked()
+            self.parent_app.global_settings["require_admin"] = new_require_admin
             self.parent_app.save_global_settings()
             self.parent_app.update_speed_label(latency_value)
             
             # Apply theme immediately if changed
             if old_theme != new_theme:
                 self.parent_app.apply_theme(new_theme)
+            
+            # Handle admin privilege change
+            if old_require_admin != new_require_admin:
+                if new_require_admin and not is_admin():
+                    # Need admin but not running as admin - restart with admin
+                    reply = QMessageBox.question(self, "Restart Required",
+                        "Application needs to restart with administrator privileges.\nRestart now?",
+                        QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                    if reply == QMessageBox.StandardButton.Yes:
+                        self.accept()
+                        if run_as_admin():
+                            QApplication.quit()
+                        else:
+                            QMessageBox.warning(self, "Error", "Failed to elevate privileges. Please run as administrator manually.")
+                        return
+                elif not new_require_admin and is_admin():
+                    # No longer need admin but running as admin - inform user
+                    QMessageBox.information(self, "Restart Recommended",
+                        "To run without administrator privileges, please restart the application normally.")
         self.accept()
 
 
@@ -1038,4 +1096,31 @@ class StratagemApp(QMainWindow):
         self.update_undo_state()
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv); ex = StratagemApp(); ex.show(); sys.exit(app.exec())
+    # Check if admin privileges are required
+    temp_app = QApplication(sys.argv)
+    
+    # Load settings to check admin requirement
+    require_admin = False
+    try:
+        if os.path.exists("general.json"):
+            with open("general.json", "r") as f:
+                settings = json.load(f)
+                require_admin = settings.get("require_admin", False)
+    except:
+        pass
+    
+    # If admin is required but not running as admin, request elevation
+    if require_admin and not is_admin():
+        reply = QMessageBox.question(None, "Administrator Privileges Required",
+            "This application is configured to require administrator privileges.\nRestart with administrator privileges?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if reply == QMessageBox.StandardButton.Yes:
+            if run_as_admin():
+                sys.exit(0)
+            else:
+                QMessageBox.warning(None, "Error", "Failed to elevate privileges. Continuing without admin rights.")
+    
+    # Continue with normal startup
+    ex = StratagemApp()
+    ex.show()
+    sys.exit(temp_app.exec())
