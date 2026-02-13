@@ -1,4 +1,4 @@
-import sys, json, keyboard, time, os, winsound
+import sys, json, keyboard, time, os, winsound, re
 from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel, 
                              QHBoxLayout, QVBoxLayout, QScrollArea, QLineEdit, 
                              QPushButton, QFileDialog, QMessageBox, QDialog,
@@ -803,7 +803,14 @@ class StratagemApp(QMainWindow):
             
             if os.path.exists(qss_path):
                 with open(qss_path, 'r', encoding='utf-8') as f:
-                    self.setStyleSheet(f.read())
+                    qss = f.read()
+                assets_root = os.path.join(base_path, ASSETS_DIR)
+                qss = re.sub(
+                    r"url\((['\"]?)assets/([^'\")]+)\1\)",
+                    lambda m: f"url(\"{os.path.join(assets_root, m.group(2)).replace('\\', '/')}\")",
+                    qss,
+                )
+                self.setStyleSheet(qss)
         except Exception as e:
             print(f"Theme Error: {e}")
 
