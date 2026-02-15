@@ -12,7 +12,7 @@ STRATAGEMS = {
     "MG-206 Heavy Machine Gun": ["down", "left", "up", "down", "down"],
     "RL-77 Airburst Rocket Launcher": ["down", "up", "up", "left", "right"],
     "MLS-4X Commando": ["down", "left", "up", "down", "right"],
-    "RS-422 Railgun": ["down", "right", "down", "down", "up", "left", "right"],
+    "RS-422 Railgun": ["down", "right", "down", "up", "left", "right"],
     "FAF-14 Spear": ["down", "down", "up", "down", "down"],
     "StA-X3 W.A.S.P. Launcher": ["down", "down", "up", "down", "right"],
 
