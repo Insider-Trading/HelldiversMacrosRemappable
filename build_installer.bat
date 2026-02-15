@@ -94,6 +94,6 @@ echo Build Complete!
 echo ============================================
 echo.
 echo Standalone EXE: dist\HelldiversNumpadMacros.exe
-echo Installer: dist\installer\HelldiversNumpadMacros-Setup-v1.0.0.exe
+echo Installer: dist\installer\HelldiversNumpadMacros-Setup-beta0.1.7.exe
 echo.
 pause

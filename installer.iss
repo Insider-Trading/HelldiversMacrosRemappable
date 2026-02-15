@@ -2,7 +2,7 @@
 ; https://jrsoftware.org/isinfo.php
 
 #define MyAppName "Helldivers Numpad Macros"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "0.1.7"
 #define MyAppPublisher "Goncalo Estrelado"
 #define MyAppURL "https://github.com/goncaloestrelado/HelldiversMacro"
 #define MyAppExeName "HelldiversNumpadMacros.exe"
@@ -22,17 +22,13 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=
 OutputDir=dist\installer
-OutputBaseFilename=HelldiversNumpadMacros-Setup-v{#MyAppVersion}
+OutputBaseFilename=HelldiversNumpadMacros-Setup-beta{#MyAppVersion}
 SetupIconFile={#MyAppIconFile}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=admin
-ArchitecturesInstallIn64BitMode=x64
-
-; Modern look
-WizardImageFile=compiler:WizModernImage-IS.bmp
-WizardSmallImageFile=compiler:WizModernSmallImage-IS.bmp
+ArchitecturesInstallIn64BitMode=x64compatible
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -60,7 +56,7 @@ Name: "{app}\profiles"; Permissions: users-modify
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
-Name: "{userstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startup
+Name: "{commonstartup}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: startup
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
@@ -69,7 +65,6 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}
 // Check if app is running and close it before installation
 function InitializeSetup(): Boolean;
 var
-  ResultCode: Integer;
   AppRunning: Boolean;
 begin
   Result := True;

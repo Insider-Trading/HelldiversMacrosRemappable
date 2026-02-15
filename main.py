@@ -1,8 +1,9 @@
-import sys, json, keyboard, time, os, winsound, re, ctypes, webbrowser
+import sys, json, keyboard, time, os, winsound, re, ctypes, webbrowser, tempfile, subprocess
+from urllib.request import urlopen, Request
 from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel, 
                              QHBoxLayout, QVBoxLayout, QScrollArea, QLineEdit, 
                              QPushButton, QFileDialog, QMessageBox, QDialog,
-                             QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle, QSizePolicy, QTextBrowser)
+                             QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle, QSizePolicy, QTextBrowser, QProgressBar)
 from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QObject, QTimer, QRect, QEvent, QThread
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtGui import QDrag, QFont, QPixmap, QAction, QIcon, QDesktopServices
@@ -30,6 +31,22 @@ comm = Comm()
 
 def normalize(name):
     return name.lower().replace(" ", "").replace("_", "").replace("-", "").replace("/", "").replace('"', "")
+
+def is_installed():
+    """Check if app is installed or running portable"""
+    exe_path = sys.executable if getattr(sys, 'frozen', False) else __file__
+    exe_dir = os.path.dirname(os.path.abspath(exe_path))
+    
+    # Check if running from Program Files or similar installation directories
+    program_files = os.environ.get('ProgramFiles', 'C:\\Program Files')
+    program_files_x86 = os.environ.get('ProgramFiles(x86)', 'C:\\Program Files (x86)')
+    
+    return exe_dir.startswith(program_files) or exe_dir.startswith(program_files_x86)
+
+def get_installer_filename(tag_name):
+    """Generate expected installer filename from tag"""
+    version = tag_name.lstrip('v').replace('beta', '')
+    return f"HelldiversNumpadMacros-Setup-{tag_name}.exe"
 
 def is_admin():
     """Check if the current process has administrator privileges"""
@@ -142,6 +159,228 @@ def get_stratagem_name(old_name):
     }
     return name_map.get(old_name, old_name)
 
+class DownloadThread(QThread):
+    """Thread for downloading installer"""
+    progress = pyqtSignal(int, int)  # downloaded, total
+    finished = pyqtSignal(str)  # file path
+    error = pyqtSignal(str)  # error message
+    
+    def __init__(self, url, filename):
+        super().__init__()
+        self.url = url
+        self.filename = filename
+        self.cancelled = False
+    
+    def run(self):
+        try:
+            request = Request(self.url, headers={'User-Agent': 'HelldiversMacro-UpdateChecker'})
+            temp_dir = tempfile.gettempdir()
+            file_path = os.path.join(temp_dir, self.filename)
+            
+            with urlopen(request, timeout=30) as response:
+                total_size = int(response.headers.get('Content-Length', 0))
+                downloaded = 0
+                chunk_size = 8192
+                
+                with open(file_path, 'wb') as f:
+                    while not self.cancelled:
+                        chunk = response.read(chunk_size)
+                        if not chunk:
+                            break
+                        f.write(chunk)
+                        downloaded += len(chunk)
+                        self.progress.emit(downloaded, total_size)
+            
+            if not self.cancelled:
+                self.finished.emit(file_path)
+        except Exception as e:
+            self.error.emit(str(e))
+    
+    def cancel(self):
+        self.cancelled = True
+
+class SetupDialog(QDialog):
+    """Dialog for installing/updating the application"""
+    def __init__(self, update_info, parent=None):
+        super().__init__(parent)
+        self.update_info = update_info
+        self.installer_path = None
+        self.download_thread = None
+        self.is_app_installed = is_installed()
+        
+        self.setObjectName("setup_dialog")
+        self.setWindowTitle("Setup - Install Update")
+        self.setMinimumWidth(500)
+        self.setMinimumHeight(300)
+        
+        layout = QVBoxLayout(self)
+        layout.setSpacing(15)
+        
+        # Title
+        if self.is_app_installed:
+            title_text = f"Update to {update_info.get('tag_name', update_info['latest_version'])}"
+            desc_text = "The installer will be downloaded and launched to update your installation."
+        else:
+            title_text = f"Install {update_info.get('tag_name', update_info['latest_version'])}"
+            desc_text = "You are running the portable version. Install to get automatic updates."
+        
+        title = QLabel(title_text)
+        title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
+        title.setStyleSheet("color: #3ddc84;")
+        layout.addWidget(title)
+        
+        desc = QLabel(desc_text)
+        desc.setWordWrap(True)
+        desc.setStyleSheet("color: #ccc; padding: 10px 0;")
+        layout.addWidget(desc)
+        
+        # Installation path (only for portable)
+        if not self.is_app_installed:
+            path_label = QLabel("Installation path:")
+            path_label.setStyleSheet("color: #ddd; margin-top: 10px;")
+            layout.addWidget(path_label)
+            
+            path_layout = QHBoxLayout()
+            self.path_input = QLineEdit()
+            default_path = os.path.join(os.environ.get('ProgramFiles', 'C:\\Program Files'), APP_NAME)
+            self.path_input.setText(default_path)
+            self.path_input.setStyleSheet("background: #1a1a1a; color: #ddd; padding: 5px; border: 1px solid #333;")
+            path_layout.addWidget(self.path_input)
+            
+            browse_btn = QPushButton("Browse...")
+            browse_btn.clicked.connect(self.browse_path)
+            path_layout.addWidget(browse_btn)
+            layout.addLayout(path_layout)
+        
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setStyleSheet(
+            "QProgressBar { background: #1a1a1a; border: 1px solid #333; border-radius: 4px; text-align: center; color: #ddd; }"
+            "QProgressBar::chunk { background: #3ddc84; }"
+        )
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+        
+        # Status label
+        self.status_label = QLabel("")
+        self.status_label.setStyleSheet("color: #aaa; font-size: 11px;")
+        self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.status_label)
+        
+        layout.addStretch(1)
+        
+        # Buttons
+        btn_layout = QHBoxLayout()
+        btn_layout.addStretch(1)
+        
+        self.cancel_btn = QPushButton("Cancel")
+        self.cancel_btn.clicked.connect(self.cancel_setup)
+        btn_layout.addWidget(self.cancel_btn)
+        
+        self.install_btn = QPushButton("Install" if not self.is_app_installed else "Update")
+        self.install_btn.setStyleSheet(
+            "background: #3ddc84; color: #000; font-weight: bold; "
+            "padding: 8px 20px; border-radius: 4px;"
+        )
+        self.install_btn.clicked.connect(self.start_installation)
+        btn_layout.addWidget(self.install_btn)
+        
+        layout.addLayout(btn_layout)
+    
+    def browse_path(self):
+        """Browse for installation directory"""
+        path = QFileDialog.getExistingDirectory(self, "Select Installation Directory")
+        if path:
+            self.path_input.setText(path)
+    
+    def start_installation(self):
+        """Download and run installer"""
+        # Find installer asset
+        download_url = None
+        assets = self.update_info.get('assets', [])
+        
+        # Look for setup executable
+        for asset in assets:
+            name = asset.get('name', '').lower()
+            if 'setup' in name and name.endswith('.exe'):
+                download_url = asset.get('browser_download_url')
+                break
+        
+        if not download_url:
+            # Fallback: construct expected download URL
+            tag_name = self.update_info.get('tag_name', self.update_info['latest_version'])
+            filename = get_installer_filename(tag_name)
+            download_url = f"https://github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases/download/{tag_name}/{filename}"
+        
+        # Start download
+        self.install_btn.setEnabled(False)
+        self.progress_bar.setVisible(True)
+        self.status_label.setText("Downloading installer...")
+        
+        filename = os.path.basename(download_url.split('?')[0])  # Remove query params
+        self.download_thread = DownloadThread(download_url, filename)
+        self.download_thread.progress.connect(self.update_progress)
+        self.download_thread.finished.connect(self.run_installer)
+        self.download_thread.error.connect(self.download_error)
+        self.download_thread.start()
+    
+    def update_progress(self, downloaded, total):
+        """Update download progress"""
+        if total > 0:
+            percent = int((downloaded / total) * 100)
+            self.progress_bar.setValue(percent)
+            mb_downloaded = downloaded / (1024 * 1024)
+            mb_total = total / (1024 * 1024)
+            self.status_label.setText(f"Downloading: {mb_downloaded:.1f} MB / {mb_total:.1f} MB")
+    
+    def run_installer(self, file_path):
+        """Run the downloaded installer"""
+        self.installer_path = file_path
+        self.status_label.setText("Download complete! Launching installer...")
+        self.progress_bar.setValue(100)
+        
+        try:
+            # Prepare installer arguments
+            if self.is_app_installed:
+                # Silent update (or with minimal UI)
+                subprocess.Popen([file_path, '/SILENT'])
+            else:
+                # Install to custom directory
+                install_dir = self.path_input.text()
+                subprocess.Popen([file_path, f'/DIR="{install_dir}"'])
+            
+            QMessageBox.information(
+                self, "Installer Launched",
+                "The installer has been launched. This application will now close.\n\n"
+                "Please complete the installation and restart the application."
+            )
+            
+            # Close the application
+            self.accept()
+            QApplication.quit()
+            
+        except Exception as e:
+            self.download_error(f"Failed to launch installer: {str(e)}")
+    
+    def download_error(self, error_msg):
+        """Handle download error"""
+        self.install_btn.setEnabled(True)
+        self.progress_bar.setVisible(False)
+        self.status_label.setText("")
+        
+        QMessageBox.warning(
+            self, "Download Failed",
+            f"Failed to download installer:\n{error_msg}\n\n"
+            "Please download manually from GitHub."
+        )
+    
+    def cancel_setup(self):
+        """Cancel installation"""
+        if self.download_thread and self.download_thread.isRunning():
+            self.download_thread.cancel()
+            self.download_thread.wait()
+        self.reject()
+
 class UpdateDialog(QDialog):
     def __init__(self, update_info, parent=None):
         super().__init__(parent)
@@ -154,16 +393,18 @@ class UpdateDialog(QDialog):
         layout = QVBoxLayout(self)
         layout.setSpacing(12)
         
-        # Title
-        title = QLabel(f"New version available: {update_info['latest_version']}")
+        # Title with clickable link
+        title = QLabel(f"New version available: <a href=\"{update_info['release_url']}\" style=\"color: #3ddc84; text-decoration: none;\">{update_info.get('tag_name', update_info['latest_version'])}</a>")
         title.setFont(QFont("Arial", 14, QFont.Weight.Bold))
         title.setStyleSheet("color: #3ddc84; padding: 10px;")
+        title.setOpenExternalLinks(True)
+        title.setTextFormat(Qt.TextFormat.RichText)
         layout.addWidget(title)
         
         # Version info
         version_info = QLabel(
             f"Current version: {update_info['current_version']}\n"
-            f"Latest version: {update_info['latest_version']}"
+            f"Latest version: {update_info.get('tag_name', update_info['latest_version'])}"
         )
         version_info.setStyleSheet("color: #ddd; padding: 5px;")
         layout.addWidget(version_info)
@@ -198,16 +439,39 @@ class UpdateDialog(QDialog):
         later_btn.clicked.connect(self.reject)
         btn_layout.addWidget(later_btn)
         
-        download_btn = QPushButton("Download")
-        download_btn.setObjectName("update_download")
-        download_btn.setStyleSheet(
+        # Show Install/Update button or just Download for browser
+        is_app_installed = is_installed()
+        if is_app_installed:
+            install_btn = QPushButton("Install Update")
+        else:
+            install_btn = QPushButton("Install")
+        
+        install_btn.setObjectName("update_install")
+        install_btn.setStyleSheet(
             "background: #3ddc84; color: #000; font-weight: bold; "
             "padding: 8px 20px; border-radius: 4px;"
         )
+        install_btn.clicked.connect(self.show_setup)
+        btn_layout.addWidget(install_btn)
+        
+        # Manual download button
+        download_btn = QPushButton("Download Only")
+        download_btn.setObjectName("update_download")
+        download_btn.setToolTip("Download installer manually")
         download_btn.clicked.connect(self.download_update)
         btn_layout.addWidget(download_btn)
         
         layout.addLayout(btn_layout)
+    
+    def show_setup(self):
+        """Show setup dialog to install/update"""
+        self.hide()
+        setup_dlg = SetupDialog(self.update_info, self.parent())
+        result = setup_dlg.exec()
+        if result == QDialog.DialogCode.Rejected:
+            self.show()  # Show update dialog again if setup was cancelled
+        else:
+            self.accept()  # Close update dialog if setup proceeded
     
     def download_update(self):
         """Open download URL in browser"""
@@ -219,7 +483,7 @@ class UpdateDialog(QDialog):
     def skip_version(self):
         """Mark this version as skipped"""
         if self.parent():
-            self.parent().global_settings['skipped_version'] = self.update_info['latest_version']
+            self.parent().global_settings['skipped_version'] = self.update_info.get('tag_name', self.update_info['latest_version'])
             self.parent().save_global_settings()
         self.reject()
 
@@ -538,7 +802,7 @@ class SettingsWindow(QDialog):
         self.minimize_tray_check = QCheckBox("Minimize to system tray on close")
         self.minimize_tray_check.setStyleSheet("color: #ddd; padding: 8px;")
         if self.parent_app:
-            self.minimize_tray_check.setChecked(self.parent_app.global_settings.get("minimize_to_tray", True))
+            self.minimize_tray_check.setChecked(self.parent_app.global_settings.get("minimize_to_tray", False))
         windows_layout.addWidget(self.minimize_tray_check)
         
         windows_desc = QLabel("When enabled, closing the window minimizes the application to the system tray.\nWhen disabled, closing the window exits the application.")
@@ -569,13 +833,23 @@ class SettingsWindow(QDialog):
         
         # Bottom buttons
         btn_row = QHBoxLayout()
+        
+        # Version label on the left (clickable link to releases)
+        version_label = QLabel(f'<a href="https://github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases" style="color: #666; text-decoration: none;">{VERSION}</a>')
+        version_label.setStyleSheet("color: #666; font-size: 10px; padding: 0 10px;")
+        version_label.setOpenExternalLinks(True)
+        version_label.setTextFormat(Qt.TextFormat.RichText)
+        version_label.setToolTip("View releases on GitHub")
+        btn_row.addWidget(version_label)
+        
+        btn_row.addStretch(1)
+        
         apply_btn = QPushButton("Apply")
         apply_btn.setObjectName("settings_apply")
         cancel_btn = QPushButton("Cancel")
         cancel_btn.setObjectName("settings_cancel")
         apply_btn.clicked.connect(self.apply_and_close)
         cancel_btn.clicked.connect(self.reject)
-        btn_row.addStretch(1)
         btn_row.addWidget(cancel_btn)
         btn_row.addWidget(apply_btn)
         
@@ -816,7 +1090,7 @@ class StratagemApp(QMainWindow):
 
     def initUI(self):
         self.setObjectName("main_window")
-        self.setWindowTitle(f"{APP_NAME} v{VERSION}")
+        self.setWindowTitle(f"{APP_NAME} {VERSION}")
         # Apply theme-based stylesheet
         theme_name = self.global_settings.get("theme", "Dark (Default)")
         self.apply_theme(theme_name)
@@ -1346,7 +1620,7 @@ class StratagemApp(QMainWindow):
             ) != QMessageBox.StandardButton.Yes:
                 event.ignore()
                 return
-        if self.global_settings.get("minimize_to_tray", True):
+        if self.global_settings.get("minimize_to_tray", False):
             self.hide()
             event.ignore()
         else:
@@ -1377,7 +1651,7 @@ class StratagemApp(QMainWindow):
         if result['has_update']:
             # Check if this version was skipped
             skipped_version = self.global_settings.get('skipped_version', '')
-            if skipped_version == result['latest_version']:
+            if skipped_version == result.get('tag_name', result['latest_version']):
                 return  # Don't show dialog for skipped version
             
             dlg = UpdateDialog(result, self)

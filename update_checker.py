@@ -4,9 +4,26 @@ Checks GitHub releases for updates
 """
 
 import json
+import re
 from urllib.request import urlopen, Request
 from urllib.error import URLError, HTTPError
 from packaging import version as version_parser
+
+
+def extract_version(tag_or_version):
+    """
+    Extract semantic version from a tag string.
+    Examples:
+        "v1.0.0" -> "1.0.0"
+        "beta0.1.6" -> "0.1.6"
+        "v0.1.6-beta" -> "0.1.6"
+        "release-1.2.3" -> "1.2.3"
+    """
+    # Match semantic version pattern (X.Y.Z with optional pre-release info)
+    match = re.search(r'(\d+\.\d+\.\d+)', tag_or_version)
+    if match:
+        return match.group(1)
+    return tag_or_version.lstrip('v')
 
 
 def compare_versions(current, latest):
@@ -64,9 +81,9 @@ def check_for_updates(current_version, repo_owner, repo_name, timeout=5):
         with urlopen(request, timeout=timeout) as response:
             data = json.loads(response.read().decode())
         
-        # Extract version from tag (remove 'v' prefix if present)
+        # Extract version from tag (handle various formats like v0.1.6, beta0.1.6, etc.)
         tag_name = data.get('tag_name', '')
-        latest_version = tag_name.lstrip('v')
+        latest_version = extract_version(tag_name)
         
         # Get release info
         release_notes = data.get('body', 'No release notes available.')
@@ -95,17 +112,21 @@ def check_for_updates(current_version, repo_owner, repo_name, timeout=5):
         if not download_url:
             download_url = release_url
         
-        # Compare versions
-        has_update = compare_versions(current_version, latest_version) > 0
+        # Compare versions (extract numeric parts from both)
+        current_numeric = extract_version(current_version)
+        latest_numeric = extract_version(tag_name)
+        has_update = compare_versions(current_numeric, latest_numeric) > 0
         
         return {
             'success': True,
             'has_update': has_update,
             'latest_version': latest_version,
+            'tag_name': tag_name,
             'current_version': current_version,
             'download_url': download_url,
             'release_url': release_url,
-            'release_notes': release_notes
+            'release_notes': release_notes,
+            'assets': assets  # Include assets for installer download
         }
         
     except HTTPError as e:
