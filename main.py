@@ -708,7 +708,7 @@ class SettingsWindow(QDialog):
         self.sound_check = QCheckBox("Enable sound notifications")
         self.sound_check.setStyleSheet("color: #ddd; padding: 8px;")
         if self.parent_app:
-            self.sound_check.setChecked(self.parent_app.global_settings.get("sound_enabled", True))
+            self.sound_check.setChecked(self.parent_app.global_settings.get("sound_enabled", False))
         notif_layout.addWidget(self.sound_check)
         
         self.visual_check = QCheckBox("Enable visual notifications")
@@ -1437,15 +1437,22 @@ class StratagemApp(QMainWindow):
     
     def load_global_settings(self):
         """Load global settings from general.json"""
+        default_settings = {
+            "latency": 20,
+            "macros_enabled": False,
+            "keybind_mode": "arrows",
+            "require_admin": False,
+            "sound_enabled": False,
+        }
         try:
             if os.path.exists("general.json"):
                 with open("general.json", "r") as f:
                     self.global_settings = json.load(f)
             else:
-                self.global_settings = {"latency": 20, "macros_enabled": False, "keybind_mode": "arrows"}
+                self.global_settings = default_settings.copy()
                 self.save_global_settings()
         except Exception:
-            self.global_settings = {"latency": 20, "macros_enabled": False, "keybind_mode": "arrows"}
+            self.global_settings = default_settings.copy()
 
         if "macros_enabled" not in self.global_settings:
             self.global_settings["macros_enabled"] = False
@@ -1453,6 +1460,14 @@ class StratagemApp(QMainWindow):
         
         if "keybind_mode" not in self.global_settings:
             self.global_settings["keybind_mode"] = "arrows"
+            self.save_global_settings()
+
+        if "require_admin" not in self.global_settings:
+            self.global_settings["require_admin"] = False
+            self.save_global_settings()
+
+        if "sound_enabled" not in self.global_settings:
+            self.global_settings["sound_enabled"] = False
             self.save_global_settings()
 
     def save_global_settings(self):
@@ -1749,6 +1764,19 @@ class StratagemApp(QMainWindow):
 
 if __name__ == '__main__':
     # Load settings to check admin requirement
+    default_settings = {
+        "latency": 20,
+        "macros_enabled": False,
+        "keybind_mode": "arrows",
+        "require_admin": False,
+        "sound_enabled": False,
+    }
+    if not os.path.exists("general.json"):
+        try:
+            with open("general.json", "w") as f:
+                json.dump(default_settings, f, indent=2)
+        except Exception:
+            pass
     require_admin = False
     try:
         if os.path.exists("general.json"):
