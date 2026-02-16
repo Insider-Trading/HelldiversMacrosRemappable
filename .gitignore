@@ -69,6 +69,7 @@ env/
 
 # Logs
 *.log
+build_log.txt
 
 # App-generated data
 general.json
