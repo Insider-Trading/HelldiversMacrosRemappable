@@ -294,7 +294,7 @@ class SetupDialog(QDialog):
     def start_installation(self):
         """Download and run installer"""
         # Find installer asset
-        download_url = None
+        download_url = self.update_info.get('download_url')
         assets = self.update_info.get('assets', [])
         
         # Look for setup executable
@@ -304,8 +304,16 @@ class SetupDialog(QDialog):
                 download_url = asset.get('browser_download_url')
                 break
         
+        # Fallback to any .exe asset (portable, if no setup present)
         if not download_url:
-            # Fallback: construct expected download URL
+            for asset in assets:
+                name = asset.get('name', '').lower()
+                if name.endswith('.exe'):
+                    download_url = asset.get('browser_download_url')
+                    break
+        
+        # Final fallback: construct expected download URL
+        if not download_url:
             tag_name = self.update_info.get('tag_name', self.update_info['latest_version'])
             filename = get_installer_filename(tag_name)
             download_url = f"https://github.com/{GITHUB_REPO_OWNER}/{GITHUB_REPO_NAME}/releases/download/{tag_name}/{filename}"
