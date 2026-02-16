@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel,
                              QHBoxLayout, QVBoxLayout, QScrollArea, QLineEdit, 
                              QPushButton, QFileDialog, QMessageBox, QDialog,
                              QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle, QSizePolicy, QTextBrowser, QProgressBar)
-from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QObject, QTimer, QRect, QEvent, QThread
+from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QObject, QTimer, QRect, QEvent, QThread, QSize
 from PyQt6.QtSvgWidgets import QSvgWidget
 from PyQt6.QtGui import QDrag, QFont, QPixmap, QAction, QIcon, QDesktopServices
 from stratagem_data import STRATAGEMS
@@ -1197,11 +1197,12 @@ class StratagemApp(QMainWindow):
         side = QVBoxLayout(side_container)
         side.setSpacing(0)  # Remove gap between search and list
         side.setContentsMargins(0, 0, 0, 0)  # Remove margins
+        side_container.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         
         self.search = QLineEdit()
         self.search.setObjectName("search_input")
         self.search.setPlaceholderText("Search...")
-        self.search.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        self.search.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self.search.setMinimumHeight(32)
         self.search.setMaximumHeight(32)
         self.search.setFixedHeight(32)
@@ -1219,18 +1220,28 @@ class StratagemApp(QMainWindow):
         self.update_search_clear_visibility(self.search.text())
         side.addWidget(self.search)
 
-        self.icon_scroll = QScrollArea()
-        self.icon_scroll.setObjectName("icon_scroll")
-        self.scroll_widget = QWidget()
-        self.scroll_layout = QVBoxLayout(self.scroll_widget)
-        self.scroll_layout.setContentsMargins(0, 0, 0, 0)
-        self.scroll_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.icon_list = QListWidget()
+        self.icon_list.setObjectName("icon_list")
+        self.icon_list.setViewMode(QListWidget.ViewMode.IconMode)
+        self.icon_list.setFlow(QListWidget.Flow.LeftToRight)
+        self.icon_list.setWrapping(True)
+        self.icon_list.setResizeMode(QListWidget.ResizeMode.Adjust)
+        self.icon_list.setMovement(QListWidget.Movement.Static)
+        self.icon_list.setSelectionMode(QListWidget.SelectionMode.NoSelection)
+        self.icon_list.setSpacing(8)
+        self.icon_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.icon_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.icon_widgets = []
+        self.icon_items = []
         for name in sorted(STRATAGEMS.keys()):
-            w = DraggableIcon(name); self.icon_widgets.append(w); self.scroll_layout.addWidget(w)
-        self.icon_scroll.setWidget(self.scroll_widget); self.icon_scroll.setWidgetResizable(True)
-        self.icon_scroll.viewport().installEventFilter(self)
-        side.addWidget(self.icon_scroll)
+            w = DraggableIcon(name)
+            item = QListWidgetItem()
+            item.setSizeHint(QSize(80, 80))
+            self.icon_list.addItem(item)
+            self.icon_list.setItemWidget(item, w)
+            self.icon_widgets.append(w)
+            self.icon_items.append((item, w))
+        side.addWidget(self.icon_list)
         QTimer.singleShot(0, self.update_search_width)
 
         grid = QGridLayout()
@@ -1349,19 +1360,14 @@ class StratagemApp(QMainWindow):
         self.search_clear_btn.move(x, y)
 
     def update_search_width(self):
-        if not hasattr(self, "icon_scroll") or not hasattr(self, "search"):
-            return
-        scroll_width = self.icon_scroll.width()
-        if scroll_width <= 0:
+        if not hasattr(self, "icon_list") or not hasattr(self, "search"):
             return
         placeholder_width = self.search.fontMetrics().horizontalAdvance(self.search.placeholderText())
         min_width = placeholder_width + 100
-        target_width = max(scroll_width, min_width)
         if hasattr(self, "side_container"):
-            self.side_container.setMinimumWidth(target_width)
-        self.search.setFixedWidth(target_width)
+            self.side_container.setMinimumWidth(min_width)
+        self.search.setMinimumWidth(min_width)
         self.search.setFixedHeight(32)
-        self.icon_scroll.setFixedWidth(target_width)
 
     def show_status(self, text, duration=2500):
         self.status_label.setText(text.upper())
@@ -1652,7 +1658,9 @@ class StratagemApp(QMainWindow):
             self.show_status("GRID CLEARED")
 
     def filter_icons(self, text):
-        for w in self.icon_widgets: w.setVisible(text.lower() in w.name.lower())
+        text_lower = text.lower()
+        for item, widget in self.icon_items:
+            item.setHidden(text_lower not in widget.name.lower())
     
     def check_for_updates_startup(self):
         """Check for updates in background on startup"""
@@ -1740,9 +1748,6 @@ class StratagemApp(QMainWindow):
         self.update_undo_state()
 
 if __name__ == '__main__':
-    # Check if admin privileges are required
-    temp_app = QApplication(sys.argv)
-    
     # Load settings to check admin requirement
     require_admin = False
     try:
@@ -1755,16 +1760,25 @@ if __name__ == '__main__':
     
     # If admin is required but not running as admin, request elevation
     if require_admin and not is_admin():
-        reply = QMessageBox.question(None, "Administrator Privileges Required",
+        reply = ctypes.windll.user32.MessageBoxW(
+            None,
             "This application is configured to require administrator privileges.\nRestart with administrator privileges?",
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
-        if reply == QMessageBox.StandardButton.Yes:
+            "Administrator Privileges Required",
+            0x00000004 | 0x00000020,  # MB_YESNO | MB_ICONQUESTION
+        )
+        if reply == 6:  # IDYES
             if run_as_admin():
                 sys.exit(0)
             else:
-                QMessageBox.warning(None, "Error", "Failed to elevate privileges. Continuing without admin rights.")
+                ctypes.windll.user32.MessageBoxW(
+                    None,
+                    "Failed to elevate privileges. Continuing without admin rights.",
+                    "Error",
+                    0x00000000 | 0x00000010,  # MB_OK | MB_ICONERROR
+                )
     
     # Continue with normal startup
+    temp_app = QApplication(sys.argv)
     ex = StratagemApp()
     ex.show()
     sys.exit(temp_app.exec())

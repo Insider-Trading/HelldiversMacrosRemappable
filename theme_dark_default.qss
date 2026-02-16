@@ -83,7 +83,6 @@ QWidget[role="numpad-slot"][assigned="true"]:hover { border: 2px solid #ff4444; 
 /* Widget sizes */
 QWidget#main_window { min-width: 550px; min-height: 500px; }
 QSlider#settings_slider { min-width: 220px; max-width: 220px; }
-QScrollArea#icon_scroll { min-width: 110px; max-width: 110px; }
 QSlider#speed_slider { min-width: 120px; max-width: 120px; }
 QMenuBar { min-height: 22px; max-height: 22px; }
 QPushButton#undo_button:disabled { color: #555; border: 1px solid #333; }
