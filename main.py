@@ -6,8 +6,8 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QGridLayout, QLabel,
                              QComboBox, QInputDialog, QSlider, QMenuBar, QSpinBox, QMainWindow, QMenu, QListWidget, QStackedWidget, QListWidgetItem, QCheckBox, QSystemTrayIcon, QToolButton, QStyle, QSizePolicy, QTextBrowser, QProgressBar)
 from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QObject, QTimer, QRect, QEvent, QThread, QSize
 from PyQt6.QtSvgWidgets import QSvgWidget
-from PyQt6.QtGui import QDrag, QFont, QPixmap, QAction, QIcon, QDesktopServices
-from stratagem_data import STRATAGEMS
+from PyQt6.QtGui import QDrag, QFont, QPixmap, QAction, QIcon, QDesktopServices, QColor
+from stratagem_data import STRATAGEMS, STRATAGEMS_BY_DEPARTMENT
 from version import VERSION, APP_NAME, GITHUB_REPO_OWNER, GITHUB_REPO_NAME
 import update_checker
 
@@ -1239,18 +1239,53 @@ class StratagemApp(QMainWindow):
         self.icon_list.setSpacing(8)
         self.icon_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.icon_list.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.icon_list.installEventFilter(self)
+        
         self.icon_widgets = []
         self.icon_items = []
-        for name in sorted(STRATAGEMS.keys()):
-            w = DraggableIcon(name)
-            item = QListWidgetItem()
-            item.setSizeHint(QSize(80, 80))
-            self.icon_list.addItem(item)
-            self.icon_list.setItemWidget(item, w)
-            self.icon_widgets.append(w)
-            self.icon_items.append((item, w))
+        self.header_items = []
+        
+        for department, stratagems in STRATAGEMS_BY_DEPARTMENT.items():
+            header_item = QListWidgetItem()
+            header_container = QWidget()
+            header_layout = QVBoxLayout(header_container)
+            header_layout.setContentsMargins(0, 0, 0, 0)
+            header_layout.setSpacing(0)
+            
+            header_label = QLabel(department)
+            header_label.setStyleSheet("""
+                QLabel {
+                    color: #00d4ff;
+                    font-weight: bold;
+                    font-size: 12px;
+                    padding: 10px 8px 8px 8px;
+                    background: rgba(0, 100, 120, 0.2);
+                    border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+                    border-radius: 0px;
+                }
+            """)
+            header_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+            header_layout.addWidget(header_label)
+            header_container.setLayout(header_layout)
+            
+            header_item.setSizeHint(QSize(800, 32))
+            self.icon_list.addItem(header_item)
+            self.icon_list.setItemWidget(header_item, header_container)
+            self.header_items.append(header_item)
+            
+            # Add icons for this department
+            for name in sorted(stratagems.keys()):
+                w = DraggableIcon(name)
+                item = QListWidgetItem()
+                item.setSizeHint(QSize(80, 80))
+                self.icon_list.addItem(item)
+                self.icon_list.setItemWidget(item, w)
+
+                self.icon_widgets.append(w)
+                self.icon_items.append((item, w))
+        
         side.addWidget(self.icon_list)
-        QTimer.singleShot(0, self.update_search_width)
+        QTimer.singleShot(100, self.update_header_widths)  # Update headers after layout settles
 
         grid = QGridLayout()
         grid.setSpacing(12)
@@ -1326,6 +1361,8 @@ class StratagemApp(QMainWindow):
         grid_container.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
 
         content.addWidget(side_container); content.addWidget(grid_container); main_vbox.addLayout(content)
+        
+        self.setMinimumWidth(900)
 
         # Bottom bar with macro toggle
         bottom_bar = QWidget()
@@ -1347,13 +1384,26 @@ class StratagemApp(QMainWindow):
         super().resizeEvent(event)
         self.update_search_clear_position()
         self.update_search_width()
+        self.update_header_widths()
 
     def eventFilter(self, source, event):
-        if source == self.search and event.type() == QEvent.Type.Resize:
+        if hasattr(self, 'search') and source == self.search and event.type() == QEvent.Type.Resize:
             self.update_search_clear_position()
             if self.search.height() != 32:
                 self.search.setFixedHeight(32)
+        elif hasattr(self, 'icon_list') and source == self.icon_list and event.type() == QEvent.Type.Resize:
+            self.update_header_widths()
         return super().eventFilter(source, event)
+
+    def update_header_widths(self):
+        """Update header item sizes to match the scroll list width"""
+        if not hasattr(self, 'header_items') or not hasattr(self, 'icon_list'):
+            return
+        
+        viewport_width = self.icon_list.viewport().width()
+        
+        for header_item in self.header_items:
+            header_item.setSizeHint(QSize(viewport_width - 4, 32))
 
     def update_search_clear_visibility(self, text):
         if not hasattr(self, "search_clear_btn"):
@@ -1688,8 +1738,64 @@ class StratagemApp(QMainWindow):
 
     def filter_icons(self, text):
         text_lower = text.lower()
+        
+        # Build a set of visible icon item indices
+        visible_icons = {}  # Maps item id to whether it matches the search
+        
         for item, widget in self.icon_items:
-            item.setHidden(text_lower not in widget.name.lower())
+            matches = text_lower in widget.name.lower() if text_lower else True
+            visible_icons[id(item)] = matches
+        
+        # Show/hide all items in the list, and manage department headers
+        current_department_index = None
+        header_has_visible_items = False
+        
+        for i in range(self.icon_list.count()):
+            item = self.icon_list.item(i)
+            widget = self.icon_list.itemWidget(i)
+            
+            # Check if this is a department header (container with layout containing QLabel)
+            is_header = (isinstance(widget, QWidget) and 
+                        hasattr(widget, 'layout') and 
+                        widget.layout() is not None and
+                        not hasattr(widget, 'stratagem_name'))
+            
+            if is_header:
+                # This is a header - verify it actually has a label inside
+                try:
+                    if widget.layout().count() > 0:
+                        child = widget.layout().itemAt(0).widget()
+                        if isinstance(child, QLabel) and not hasattr(child, 'name'):
+                            # Confirmed this is a header
+                            # If previous header has no visible items, hide it now
+                            if current_department_index is not None and not header_has_visible_items:
+                                self.icon_list.item(current_department_index).setHidden(True)
+                            
+                            current_department_index = i
+                            header_has_visible_items = False
+                            item.setHidden(True)  # Will be unhidden if items match
+                            continue
+                except:
+                    pass
+            
+            # This is an icon (DraggableIcon)
+            if hasattr(widget, 'name'):
+                item_id = id(item)
+                if item_id in visible_icons:
+                    should_show = visible_icons[item_id]
+                    item.setHidden(not should_show)
+                    if should_show and current_department_index is not None:
+                        # Show the department header if an icon in this department matches
+                        self.icon_list.item(current_department_index).setHidden(False)
+                        header_has_visible_items = True
+        
+        # Handle last header
+        if current_department_index is not None and not header_has_visible_items:
+            self.icon_list.item(current_department_index).setHidden(True)
+    
+    
+    
+    
     
     def check_for_updates_startup(self):
         """Check for updates in background on startup"""
