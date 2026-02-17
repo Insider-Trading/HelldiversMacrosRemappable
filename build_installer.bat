@@ -70,13 +70,7 @@ REM Read version from version.py as single source of truth
 for /f "tokens=2 delims== " %%A in ('findstr /r /c:"^VERSION[ ]*=" version.py') do set "APP_VERSION=%%~A"
 if "%APP_VERSION%"=="" set "APP_VERSION=unknown"
 echo Detected app version: %APP_VERSION%
-REM Rename portable EXE with version
-set "PORTABLE_EXE_OLD=dist\HelldiversNumpadMacros.exe"
-set "PORTABLE_EXE_NEW=dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
-if exist "%PORTABLE_EXE_OLD%" (
-    ren "%PORTABLE_EXE_OLD%" "HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
-    echo Renamed portable EXE: %PORTABLE_EXE_NEW%
-)
+
 REM Sync installer version to match version.py
 powershell -NoProfile -Command "& { $q = [char]34; $content = Get-Content installer.iss; $content = $content -replace '^#define MyAppVersion .*$', ('#define MyAppVersion ' + $q + $env:APP_VERSION + $q); Set-Content installer.iss $content }"
 
@@ -119,6 +113,14 @@ pause < con
 exit /b 1
 
 :inno_success
+
+REM Now rename the portable EXE after Inno Setup has used it
+set "PORTABLE_EXE_OLD=dist\HelldiversNumpadMacros.exe"
+set "PORTABLE_EXE_NEW=dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
+if exist "%PORTABLE_EXE_OLD%" (
+    ren "%PORTABLE_EXE_OLD%" "HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
+    echo Renamed portable EXE: %PORTABLE_EXE_NEW%
+)
 
 echo.
 echo ============================================
