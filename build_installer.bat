@@ -99,7 +99,7 @@ set "INNO_TRY=1"
 :inno_retry
 "%INNO_PATH%" "installer.iss"
 
-set "INSTALLER_EXE=dist\installer\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe"
+set "INSTALLER_EXE=dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe"
 if exist "%INSTALLER_EXE%" goto inno_success
 
 if %INNO_TRY% LSS %INNO_RETRIES% (
@@ -128,7 +128,7 @@ echo Build Complete!
 echo ============================================
 echo.
 echo Portable EXE: dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe
-echo Installer EXE: dist\installer\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe
+echo Installer EXE: dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe
 echo.
 echo.
 echo Build log saved to %LOG_FILE%
