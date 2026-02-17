@@ -1813,7 +1813,7 @@ class StratagemApp(QMainWindow):
         
         for i in range(self.icon_list.count()):
             item = self.icon_list.item(i)
-            widget = self.icon_list.itemWidget(i)
+            widget = self.icon_list.itemWidget(item)
             
             # Check if this is a department header (container with layout containing QLabel)
             is_header = (isinstance(widget, QWidget) and 
