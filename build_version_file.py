@@ -70,10 +70,10 @@ VSVersionInfo(
 '''
 
 # Write to version_file.txt
-with open('version_file.txt', 'w') as f:
+with open('version_file.txt', 'w', encoding='utf-8') as f:
     f.write(version_file_content)
 
-print(f"✓ Generated version_file.txt for version {version_string}")
+print(f"[OK] Generated version_file.txt for version {version_string}")
 
 # Also update app.manifest with the correct version
 manifest_path = Path("app.manifest")
@@ -86,4 +86,4 @@ manifest_content = re.sub(
     manifest_content
 )
 manifest_path.write_text(manifest_content)
-print(f"✓ Updated app.manifest version to {windows_version}")
+print(f"[OK] Updated app.manifest version to {windows_version}")
