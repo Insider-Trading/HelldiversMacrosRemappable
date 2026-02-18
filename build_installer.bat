@@ -50,9 +50,9 @@ pyinstaller --noconfirm --onefile --windowed ^
     --add-data "src/core/stratagem_data.py;." ^
     --add-data "src/config/version.py;." ^
     --add-data "src/managers/update_checker.py;." ^
-    --add-data "src/ui/theme_dark_default.qss;." ^
-    --add-data "src/ui/theme_dark_blue.qss;." ^
-    --add-data "src/ui/theme_dark_red.qss;." ^
+    --add-data "src/ui/theme_dark_default.qss;src/ui/" ^
+    --add-data "src/ui/theme_dark_blue.qss;src/ui/" ^
+    --add-data "src/ui/theme_dark_red.qss;src/ui/" ^
     --icon "assets/icon.ico" ^
     --manifest "app.manifest" ^
     main.py
