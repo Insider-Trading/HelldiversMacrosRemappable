@@ -51,19 +51,6 @@ HEADER_HEIGHT = 32
 
 SEARCH_HEIGHT = 32
 
-# Department header style
-DEPARTMENT_HEADER_STYLE = """
-    QLabel {
-        color: #00d4ff;
-        font-weight: bold;
-        font-size: 12px;
-        padding: 10px 8px 8px 8px;
-        background: rgba(0, 100, 120, 0.2);
-        border-bottom: 1px solid rgba(0, 212, 255, 0.3);
-        border-radius: 0px;
-    }
-"""
-
 KEYBIND_MAPPINGS = {
     "arrows": {
         "up": "up",

@@ -11,7 +11,7 @@ from PyQt6.QtGui import QIcon
 
 from config import (PROFILES_DIR, ASSETS_DIR, get_theme_stylesheet, load_settings, 
                    save_settings)
-from constants import NUMPAD_LAYOUT, DEPARTMENT_HEADER_STYLE
+from constants import NUMPAD_LAYOUT
 from stratagem_data import STRATAGEMS, STRATAGEMS_BY_DEPARTMENT
 from version import VERSION, APP_NAME
 from dialogs import TestEnvironment, SettingsWindow
@@ -245,7 +245,7 @@ class StratagemApp(QMainWindow):
             header_layout.setSpacing(0)
             
             header_label = QLabel(department)
-            header_label.setStyleSheet(DEPARTMENT_HEADER_STYLE)
+            header_label.setObjectName("department_header")
             header_label.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
             header_layout.addWidget(header_label)
             header_container.setLayout(header_layout)
@@ -338,6 +338,15 @@ class StratagemApp(QMainWindow):
         else:
             self.macro_engine.disable()
             event.accept()
+
+    def _autoload_last_profile(self):
+        """Autoload the last used profile if enabled"""
+        if self.global_settings.get("autoload_profile", False):
+            last_profile = self.global_settings.get("last_profile", None)
+            if last_profile and last_profile != "Create new profile":
+                idx = self.profile_box.findText(last_profile)
+                if idx >= 0:
+                    self.profile_box.setCurrentIndex(idx)
 
     # UI update methods
     def update_header_widths(self):
