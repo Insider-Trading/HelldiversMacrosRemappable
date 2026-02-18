@@ -8,8 +8,8 @@ All components have been moved to:
 Import from those modules directly in new code.
 """
 
-from dialogs import TestEnvironment, SettingsDialog, SettingsWindow
-from widgets import Comm, DraggableIcon, NumpadSlot, comm
+from .dialogs import TestEnvironment, SettingsDialog, SettingsWindow
+from .widgets import Comm, DraggableIcon, NumpadSlot, comm
 
 __all__ = [
     'TestEnvironment',

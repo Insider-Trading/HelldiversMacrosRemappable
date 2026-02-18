@@ -9,17 +9,17 @@ from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, QL
 from PyQt6.QtCore import Qt, QTimer, QEvent, QSize
 from PyQt6.QtGui import QIcon
 
-from config import (PROFILES_DIR, ASSETS_DIR, get_theme_stylesheet, load_settings, 
-                   save_settings)
-from constants import NUMPAD_LAYOUT
-from stratagem_data import STRATAGEMS, STRATAGEMS_BY_DEPARTMENT
-from version import VERSION, APP_NAME
-from dialogs import TestEnvironment, SettingsWindow
-from widgets import DraggableIcon, NumpadSlot, comm
-from profile_manager import ProfileManager
-from macro_engine import MacroEngine
-from tray_manager import TrayManager
-from update_manager import check_for_updates_startup
+from src.config import (PROFILES_DIR, ASSETS_DIR, get_theme_stylesheet, load_settings, 
+                       save_settings)
+from src.config.constants import NUMPAD_LAYOUT
+from src.core.stratagem_data import STRATAGEMS, STRATAGEMS_BY_DEPARTMENT
+from src.config.version import VERSION, APP_NAME
+from src.ui.dialogs import TestEnvironment, SettingsWindow
+from src.ui.widgets import DraggableIcon, NumpadSlot, comm
+from src.managers.profile_manager import ProfileManager
+from src.core.macro_engine import MacroEngine
+from src.ui.tray_manager import TrayManager
+from src.managers.update_manager import check_for_updates_startup
 
 
 class StratagemApp(QMainWindow):
@@ -694,7 +694,7 @@ class StratagemApp(QMainWindow):
 
 def main():
     """Main application entry point"""
-    from config import is_admin, run_as_admin
+    from src.config.config import is_admin, run_as_admin
     
     settings = load_settings()
     require_admin = settings.get("require_admin", False)

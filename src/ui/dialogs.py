@@ -8,13 +8,13 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSlider,
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QFont
 
-from constants import ARROW_ICONS
-from config import is_admin, run_as_admin
-from version import VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME
-import update_checker
-from update_manager import UpdateDialog, check_for_updates_startup
-from config import get_install_type
-from widgets import comm
+from ..config.constants import ARROW_ICONS
+from ..config.config import is_admin, run_as_admin
+from ..config.version import VERSION, GITHUB_REPO_OWNER, GITHUB_REPO_NAME
+from ..managers import update_checker
+from ..managers.update_manager import UpdateDialog, check_for_updates_startup
+from ..config.config import get_install_type
+from .widgets import comm
 
 
 class TestEnvironment(QDialog):

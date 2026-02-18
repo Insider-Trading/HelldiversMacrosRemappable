@@ -11,7 +11,7 @@ from PyQt6.QtGui import QDrag
 from PyQt6.QtCore import QMimeData
 
 import keyboard
-from config import find_svg_path
+from ..config.config import find_svg_path
 
 
 class Comm(QObject):

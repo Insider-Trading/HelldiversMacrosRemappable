@@ -5,7 +5,7 @@ Handles loading, saving, and managing profiles
 
 import os
 import json
-from config import PROFILES_DIR, LEGACY_NAME_MAP
+from ..config.config import PROFILES_DIR, LEGACY_NAME_MAP
 
 
 class ProfileManager:

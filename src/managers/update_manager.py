@@ -15,9 +15,9 @@ from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushBut
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont
 
-import update_checker
-from config import get_install_type, get_installer_filename, is_installed
-from version import VERSION, APP_NAME, GITHUB_REPO_OWNER, GITHUB_REPO_NAME
+from . import update_checker
+from ..config.config import get_install_type, get_installer_filename, is_installed
+from ..config.version import VERSION, APP_NAME, GITHUB_REPO_OWNER, GITHUB_REPO_NAME
 
 
 class DownloadThread(QThread):
@@ -368,7 +368,7 @@ class UpdateDialog(QDialog):
     
     def skip_version(self):
         """Skip this version and don't show again"""
-        from config import load_settings, save_settings
+        from ..config.config import load_settings, save_settings
         settings = load_settings()
         settings['skipped_version'] = self.update_info.get('tag_name', self.update_info['latest_version'])
         save_settings(settings)

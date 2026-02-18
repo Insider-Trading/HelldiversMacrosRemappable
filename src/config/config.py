@@ -10,7 +10,7 @@ import json
 import ctypes
 import re
 
-from constants import THEME_FILES, DEFAULT_SETTINGS
+from .constants import THEME_FILES, DEFAULT_SETTINGS
 
 
 def get_app_data_dir():

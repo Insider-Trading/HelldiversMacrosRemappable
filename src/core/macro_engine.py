@@ -6,8 +6,8 @@ Handles keyboard hooking and macro execution
 import time
 import winsound
 import keyboard
-from stratagem_data import STRATAGEMS
-from constants import KEYBIND_MAPPINGS
+from .stratagem_data import STRATAGEMS
+from ..config.constants import KEYBIND_MAPPINGS
 
 
 class MacroEngine:
