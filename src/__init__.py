@@ -3,4 +3,6 @@ Helldivers Numpad Macros - Source Package
 Main application modules organized by function
 """
 
-__version__ = "0.1.10"
+from .config.version import VERSION
+
+__version__ = VERSION
