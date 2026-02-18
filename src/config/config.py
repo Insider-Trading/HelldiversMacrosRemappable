@@ -122,6 +122,12 @@ def find_svg_path(name):
     return None
 
 
+def get_asset_path(filename):
+    """Get the correct path for an asset file, handling both development and PyInstaller builds"""
+    base_path = getattr(sys, '_MEIPASS', os.path.abspath("."))
+    return os.path.join(base_path, ASSETS_DIR, filename)
+
+
 def load_settings():
     """Load global settings from file"""
     if not os.path.exists(SETTINGS_FILE):

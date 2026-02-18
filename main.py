@@ -11,7 +11,7 @@ from PyQt6.QtCore import Qt, QTimer, QEvent, QSize
 from PyQt6.QtGui import QIcon
 
 from src.config import (PROFILES_DIR, ASSETS_DIR, get_theme_stylesheet, load_settings, 
-                       save_settings)
+                       save_settings, get_asset_path)
 from src.config.constants import NUMPAD_LAYOUT
 from src.core.stratagem_data import STRATAGEMS, STRATAGEMS_BY_DEPARTMENT
 from src.config.version import VERSION, APP_NAME
@@ -85,7 +85,7 @@ class StratagemApp(QMainWindow):
     def _load_app_icon(self):
         """Load application icon"""
         try:
-            icon_path = os.path.join(os.path.dirname(__file__), ASSETS_DIR, "icon.ico")
+            icon_path = get_asset_path("icon.ico")
             if os.path.exists(icon_path):
                 self.app_icon = QIcon(icon_path)
                 self.setWindowIcon(self.app_icon)
@@ -131,8 +131,8 @@ class StratagemApp(QMainWindow):
         
         btn_import = QPushButton("")
         btn_export = QPushButton("")
-        import_icon_path = os.path.join(os.path.dirname(__file__), ASSETS_DIR, "import.svg")
-        export_icon_path = os.path.join(os.path.dirname(__file__), ASSETS_DIR, "export.svg")
+        import_icon_path = get_asset_path("import.svg")
+        export_icon_path = get_asset_path("export.svg")
         if os.path.exists(import_icon_path):
             btn_import.setIcon(QIcon(import_icon_path))
         if os.path.exists(export_icon_path):
