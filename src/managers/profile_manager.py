@@ -57,6 +57,49 @@ class ProfileManager:
         except Exception as e:
             print(f"[ProfileManager] Error loading profile: {e}")
             return None
+
+    @staticmethod
+    def load_profile_from_path(file_path):
+        """Load profile data from an arbitrary file path"""
+        if not os.path.exists(file_path):
+            return None
+
+        try:
+            with open(file_path, "r") as f:
+                data = json.load(f)
+
+            if not isinstance(data, dict):
+                return None
+
+            speed = data.get("speed", 20)
+            try:
+                speed = int(speed)
+            except (TypeError, ValueError):
+                speed = 20
+
+            mappings = data.get("mappings", {})
+            if not isinstance(mappings, dict):
+                mappings = {}
+
+            migrated = False
+            updated_mappings = {}
+            for code, strat in mappings.items():
+                if strat in LEGACY_NAME_MAP:
+                    updated_mappings[code] = LEGACY_NAME_MAP[strat]
+                    migrated = True
+                else:
+                    updated_mappings[code] = strat
+
+            if migrated:
+                data["mappings"] = updated_mappings
+
+            return {
+                "speed": speed,
+                "mappings": updated_mappings
+            }
+        except Exception as e:
+            print(f"[ProfileManager] Error loading profile from path: {e}")
+            return None
     
     @staticmethod
     def save_profile(profile_name, data):
@@ -74,6 +117,18 @@ class ProfileManager:
             return True
         except Exception as e:
             print(f"[ProfileManager] Error saving profile: {e}")
+            return False
+
+    @staticmethod
+    def save_profile_to_path(file_path, data):
+        """Save profile data to an arbitrary file path"""
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, "w") as f:
+                json.dump(data, f, indent=2)
+            return True
+        except Exception as e:
+            print(f"[ProfileManager] Error saving profile to path: {e}")
             return False
     
     @staticmethod

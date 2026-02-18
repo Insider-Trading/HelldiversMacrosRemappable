@@ -5,7 +5,8 @@ import ctypes
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QWidget, QGridLayout, QLabel,
                              QHBoxLayout, QVBoxLayout, QLineEdit, QPushButton, QComboBox,
                              QMessageBox, QListWidget, QToolButton, QCheckBox,
-                             QSizePolicy, QListWidgetItem, QSlider, QInputDialog)
+                             QSizePolicy, QListWidgetItem, QSlider, QInputDialog,
+                             QFileDialog)
 from PyQt6.QtCore import Qt, QTimer, QEvent, QSize
 from PyQt6.QtGui import QIcon
 
@@ -128,13 +129,32 @@ class StratagemApp(QMainWindow):
         right_sidebar = QVBoxLayout()
         right_sidebar.setContentsMargins(0, 8, 8, 8)
         
+        btn_import = QPushButton("")
+        btn_export = QPushButton("")
+        import_icon_path = os.path.join(os.path.dirname(__file__), ASSETS_DIR, "import.svg")
+        export_icon_path = os.path.join(os.path.dirname(__file__), ASSETS_DIR, "export.svg")
+        if os.path.exists(import_icon_path):
+            btn_import.setIcon(QIcon(import_icon_path))
+        if os.path.exists(export_icon_path):
+            btn_export.setIcon(QIcon(export_icon_path))
+        btn_import.setIconSize(QSize(18, 18))
+        btn_export.setIconSize(QSize(18, 18))
+
         self.profile_box = QComboBox()
         self.profile_box.setObjectName("profile_box_styled")
         self.profile_box.currentIndexChanged.connect(self.profile_changed)
-        right_sidebar.addWidget(self.profile_box)
+
+        profile_row = QHBoxLayout()
+        profile_row.setSpacing(6)
+        profile_row.addStretch(1)
+        profile_row.addWidget(btn_import)
+        profile_row.addWidget(btn_export)
+        profile_row.addWidget(self.profile_box, 1)
+        right_sidebar.addLayout(profile_row)
         
         btn_layout = QHBoxLayout()
         btn_layout.setSpacing(6)
+        btn_layout.addStretch(1)
         
         self.undo_btn = QPushButton("↶")
         self.save_btn = QPushButton("💾")
@@ -153,6 +173,16 @@ class StratagemApp(QMainWindow):
             btn.setProperty("role", "action")
             btn.clicked.connect(handler)
             btn_layout.addWidget(btn)
+
+        btn_import.setToolTip("Import Profile")
+        btn_import.setProperty("role", "action")
+        btn_import.clicked.connect(self.import_profile)
+        btn_import.setFixedSize(40, 40)
+
+        btn_export.setToolTip("Export Profile")
+        btn_export.setProperty("role", "action")
+        btn_export.clicked.connect(self.export_profile)
+        btn_export.setFixedSize(40, 40)
         
         self.update_undo_state()
         right_sidebar.addLayout(btn_layout)
@@ -218,6 +248,7 @@ class StratagemApp(QMainWindow):
         self.toggle_all_btn.setFixedHeight(28)
         self.toggle_all_btn.clicked.connect(self.toggle_all_departments)
         self.toggle_all_collapsed = False  # Track if all are currently collapsed
+        self.update_toggle_all_button_state()
         side.addWidget(self.toggle_all_btn)
         
         self.icon_list = QListWidget()
@@ -487,6 +518,79 @@ class StratagemApp(QMainWindow):
             self.show_status("PROFILE SAVED")
         self.save_current_state()
         self.update_undo_state()
+
+    def import_profile(self):
+        """Import a profile from a JSON file"""
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Import Profile",
+            "",
+            "Profile Files (*.json)"
+        )
+        if not file_path:
+            return
+
+        data = ProfileManager.load_profile_from_path(file_path)
+        if not data:
+            QMessageBox.warning(self, "Import Failed", "Invalid or unreadable profile file.")
+            return
+
+        suggested_name = os.path.splitext(os.path.basename(file_path))[0].strip()
+        if not suggested_name:
+            suggested_name = "Imported Profile"
+
+        target_name = suggested_name
+        if ProfileManager.profile_exists(target_name):
+            reply = QMessageBox.question(
+                self,
+                "Profile Exists",
+                f"A profile named '{target_name}' already exists. Overwrite it?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No | QMessageBox.StandardButton.Cancel
+            )
+
+            if reply == QMessageBox.StandardButton.Cancel:
+                return
+            if reply == QMessageBox.StandardButton.No:
+                name, ok = QInputDialog.getText(
+                    self,
+                    "Rename Imported Profile",
+                    "Enter a new profile name:",
+                    text=target_name
+                )
+                if not ok or not name.strip():
+                    return
+                target_name = os.path.splitext(name.strip())[0]
+
+        ProfileManager.save_profile(target_name, data)
+        self.refresh_profiles()
+        self.profile_box.setCurrentText(target_name)
+        self.show_status("PROFILE IMPORTED")
+        self.save_current_state()
+
+    def export_profile(self):
+        """Export the current profile to a JSON file"""
+        current = self.profile_box.currentText()
+        default_name = current if current != "Create new profile" else "profile"
+        default_name = os.path.splitext(default_name)[0] + ".json"
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            self,
+            "Export Profile",
+            default_name,
+            "Profile Files (*.json)"
+        )
+        if not file_path:
+            return
+
+        if not file_path.lower().endswith(".json"):
+            file_path += ".json"
+
+        state = self.get_current_state()
+        if not ProfileManager.save_profile_to_path(file_path, state):
+            QMessageBox.warning(self, "Export Failed", "Could not write the profile file.")
+            return
+
+        self.show_status("PROFILE EXPORTED")
 
     def load_profile(self, path):
         """Load profile from file"""
