@@ -78,57 +78,70 @@ REM Check if Inno Setup is installed
 echo.
 echo [Step 3/3] Creating installer with Inno Setup...
 
-set "INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-if not exist "%INNO_PATH%" (
+set "INNO_PATH="
+
+REM Check common installation paths
+if exist "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" (
+    set "INNO_PATH=C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+) else if exist "C:\Program Files\Inno Setup 6\ISCC.exe" (
     set "INNO_PATH=C:\Program Files\Inno Setup 6\ISCC.exe"
 )
 
-if not exist "%INNO_PATH%" (
+if "%INNO_PATH%"=="" (
     echo.
-    echo WARNING: Inno Setup not found at default location
-    echo Please install Inno Setup from: https://jrsoftware.org/isdl.php
+    echo WARNING: Inno Setup not found on this system
+    echo To create an installer, install Inno Setup from: https://jrsoftware.org/isdl.php
+    echo Then run this build script again, or manually compile: installer\installer.iss
     echo.
-    echo You can manually compile installer.iss after installation
-    echo.
-    echo Build completed: dist\HelldiversNumpadMacros.exe
-    goto zip_portable
+    echo Portable EXE created successfully: dist\HelldiversNumpadMacros.exe
+    echo Skipping installer creation...
+    goto build_complete
 )
 
-set "INNO_RETRIES=3"
-set "INNO_TRY=1"
-:inno_retry
-"%INNO_PATH%" "installer.iss"
+REM Inno Setup was found, try to build installer
+echo Attempting to compile installer with Inno Setup...
+cd /d "C:\Users\Utilizador\Desktop\HelldiversMacrosProject\HelldiversMacro"
+"%INNO_PATH%" "installer\installer.iss"
 
 set "INSTALLER_EXE=dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe"
-if exist "%INSTALLER_EXE%" goto inno_success
-
-if %INNO_TRY% LSS %INNO_RETRIES% (
-    echo WARNING: Inno Setup failed. Retrying in 2 seconds... (%INNO_TRY%/%INNO_RETRIES%)
-    set /a INNO_TRY+=1
-    timeout /t 2 /nobreak >nul
-    goto inno_retry
+if exist "%INSTALLER_EXE%" (
+    echo Installer created successfully
+    goto rename_portable
+) else (
+    echo WARNING: Inno Setup compilation failed
+    echo The portable EXE will still be renamed for consistency
 )
-echo ERROR: Inno Setup compilation failed
-pause < con
-exit /b 1
 
-:inno_success
-
-REM Now rename the portable EXE after Inno Setup has used it
+:rename_portable
+REM Rename portable EXE to include version (do this whether or not installer succeeded)
 set "PORTABLE_EXE_OLD=dist\HelldiversNumpadMacros.exe"
 set "PORTABLE_EXE_NEW=dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
 if exist "%PORTABLE_EXE_OLD%" (
     ren "%PORTABLE_EXE_OLD%" "HelldiversNumpadMacros-Portable-%APP_VERSION%.exe"
     echo Renamed portable EXE: %PORTABLE_EXE_NEW%
+) else (
+    if not exist "%PORTABLE_EXE_NEW%" (
+        echo WARNING: Could not find portable EXE to rename
+    )
 )
 
+goto build_complete
+
+:build_complete
 echo.
 echo ============================================
 echo Build Complete!
 echo ============================================
 echo.
-echo Portable EXE: dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe
-echo Installer EXE: dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe
+if exist "dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe" (
+    echo Portable EXE: dist\HelldiversNumpadMacros-Portable-%APP_VERSION%.exe
+)
+if exist "dist\HelldiversNumpadMacros.exe" (
+    echo Portable EXE: dist\HelldiversNumpadMacros.exe
+)
+if exist "dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe" (
+    echo Installer EXE: dist\HelldiversNumpadMacros-Setup-%APP_VERSION%.exe
+)
 echo.
 echo.
 echo Build log saved to %LOG_FILE%

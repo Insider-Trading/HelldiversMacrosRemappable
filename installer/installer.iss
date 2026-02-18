@@ -6,7 +6,7 @@
 #define MyAppPublisher "Goncalo Estrelado"
 #define MyAppURL "https://github.com/goncaloestrelado/HelldiversMacro"
 #define MyAppExeName "HelldiversNumpadMacros.exe"
-#define MyAppIconFile "assets\icon.ico"
+#define MyAppIconFile "..\assets\icon.ico"
 
 [Setup]
 ; NOTE: The value of AppId uniquely identifies this application.
@@ -21,9 +21,9 @@ DefaultDirName={autopf}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 LicenseFile=
-OutputDir=dist
+OutputDir=..\dist
 OutputBaseFilename=HelldiversNumpadMacros-Setup-{#MyAppVersion}
-SetupIconFile={#MyAppIconFile}
+;SetupIconFile={#MyAppIconFile}
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
@@ -39,14 +39,14 @@ Name: "startup"; Description: "Run at Windows startup"; GroupDescription: "Addit
 
 [Files]
 ; Main executable (from dist folder created by PyInstaller)
-Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 ; Include all assets if they're bundled separately (uncomment if assets aren't embedded in EXE)
-; Source: "assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Source: "..\assets\*"; DestDir: "{app}\assets"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Additional files
-Source: "README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
-; Source: "LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+; Source: "..\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 
 [Dirs]
 ; Create profiles directory with user permissions
