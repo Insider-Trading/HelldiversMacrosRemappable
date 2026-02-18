@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import subprocess
+import time
 from urllib.request import urlopen, Request
 
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -445,37 +446,93 @@ class PortableUpdateDialog(QDialog):
         """Replace the old version with the new one"""
         try:
             old_exe_path = os.path.join(self.current_dir, self.current_exe_name)
-            backup_path = old_exe_path + '.old'
+            new_exe_path = self.downloaded_file
             
-            # Rename old exe to .old (in case we need to rollback)
-            if os.path.exists(old_exe_path):
-                if os.path.exists(backup_path):
-                    os.remove(backup_path)
-                os.rename(old_exe_path, backup_path)
+            # Create a cleanup and restart script
+            cleanup_script = self._create_cleanup_script(old_exe_path, new_exe_path)
             
-            # Rename new exe to proper name
-            final_path = os.path.join(self.current_dir, self.current_exe_name)
-            os.rename(self.downloaded_file, final_path)
-            
-            # Schedule old backup for deletion on next start
-            QMessageBox.information(
-                self, "Update Complete",
-                f"Update installed successfully!\n\n"
-                f"The new version is ready at:\n{final_path}\n\n"
-                f"Please restart the application to use the new version.\n\n"
-                f"Old version backup: {backup_path}\n"
-                f"(You can delete it manually if the new version works correctly)"
-            )
-            
-            self.accept()
+            if cleanup_script:
+                # Show message before closing
+                QMessageBox.information(
+                    self, "Update Complete",
+                    "The update has been downloaded successfully.\n\n"
+                    "The application will now close, delete the old version, "
+                    "and launch the new version."
+                )
+                
+                # Close the application
+                self.accept()
+                
+                # Execute cleanup script in background
+                subprocess.Popen(cleanup_script, shell=True)
+                
+                # Give time for script to be created before app closes
+                time.sleep(0.5)
+                QApplication.quit()
+            else:
+                QMessageBox.critical(
+                    self, "Update Error",
+                    "Failed to create cleanup script.\n\n"
+                    "The new version is available at:\n"
+                    f"{new_exe_path}\n\n"
+                    "You can manually delete the old version and rename the new one."
+                )
             
         except Exception as e:
             QMessageBox.critical(
                 self, "Update Error",
-                f"Failed to replace old version:\n{str(e)}\n\n"
+                f"Failed to prepare update:\n{str(e)}\n\n"
                 f"The new version is available at:\n{self.downloaded_file}\n\n"
-                f"You can manually rename it to replace the old version."
+                "You can manually rename it to replace the old version."
             )
+    
+    def _create_cleanup_script(self, old_exe_path, new_exe_path):
+        """Create a batch script to clean up old version and start new one"""
+        try:
+            # Get unique filename for cleanup script
+            cleanup_script_path = os.path.join(
+                tempfile.gettempdir(), 
+                f"cleanup_helldiving_update_{int(time.time())}.bat"
+            )
+            
+            # Create batch script content
+            # The script:
+            # 1. Waits 2 seconds for app to fully close
+            # 2. Deletes the old exe
+            # 3. Renames the new exe to the original name
+            # 4. Runs the new exe
+            # 5. Deletes itself
+            
+            batch_content = f"""@echo off
+REM Wait for the old application to close
+timeout /t 2 /nobreak
+
+REM Delete old version
+if exist "{old_exe_path}" (
+    del /f /q "{old_exe_path}"
+)
+
+REM Rename new version to original name
+if exist "{new_exe_path}" (
+    ren "{new_exe_path}" "{os.path.basename(old_exe_path)}"
+)
+
+REM Start the new version
+start "" "{old_exe_path}"
+
+REM Delete this cleanup script
+del /f /q "%~f0"
+"""
+            
+            # Write script to temporary file
+            with open(cleanup_script_path, 'w') as f:
+                f.write(batch_content)
+            
+            return cleanup_script_path
+            
+        except Exception as e:
+            print(f"Failed to create cleanup script: {e}")
+            return None
     
     def keep_both_versions(self):
         """Keep both old and new versions"""
