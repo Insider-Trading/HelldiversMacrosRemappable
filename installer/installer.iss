@@ -1,11 +1,11 @@
-; Inno Setup Script for Helldivers Numpad Macros
+; Inno Setup Script for Helldivers Remappable Macros
 ; https://jrsoftware.org/isinfo.php
 
-#define MyAppName "Helldivers Numpad Macros"
+#define MyAppName "Helldivers Remappable Macros"
 #define MyAppVersion "0.2.0"
-#define MyAppPublisher "Goncalo Estrelado"
+#define MyAppPublisher "Remappable Macros (Original by Gonçalo Estrelado)"
 #define MyAppURL "https://github.com/goncaloestrelado/HelldiversMacro"
-#define MyAppExeName "HelldiversNumpadMacros.exe"
+#define MyAppExeName "HelldiversRemappableMacros.exe"
 #define MyAppIconFile "..\assets\icon.ico"
 
 [Setup]
@@ -84,7 +84,7 @@ begin
   begin
     if RetryCount = 0 then
     begin
-      MsgBox('Helldivers Numpad Macros is currently running.' + #13#10 + #13#10 + 
+      MsgBox('Helldivers Remappable Macros is currently running.' + #13#10 + #13#10 + 
              'Setup will automatically close it to continue installation.', 
              mbInformation, MB_OK);
     end;

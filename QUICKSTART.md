@@ -1,4 +1,4 @@
-# Helldivers Numpad Macros - Quick Start
+# Helldivers Remappable Macros - Quick Start
 
 ## Installation
 
@@ -7,7 +7,7 @@
 1. Download `HelldiversNumpadMacros-Setup-v1.0.0.exe` from the latest release
 2. Run the installer
 3. Follow the installation wizard
-4. The application will be installed to `C:\Program Files\Helldivers Numpad Macros`
+4. The application will be installed to `C:\Program Files\Helldivers Remappable Macros`
 5. Start menu and desktop shortcuts will be created (if selected)
 
 ### Portable Version
@@ -23,10 +23,11 @@ On first run, the app may request administrator privileges if enabled in setting
 
 ## Using the Application
 
-1. **Assign Stratagems**: Drag stratagem icons from the left sidebar to numpad slots
-2. **Save Profile**: Click the 💾 button and name your profile
-3. **Enable Macros**: Toggle the switch at the bottom to "Status: Enabled"
-4. **Test**: In-game, press the assigned numpad key to execute the stratagem
+1. **Remap Keys**: Double-click (or middle-click) any slot in the grid to enter recording mode, then press the key you want to use.
+2. **Assign Stratagems**: Drag stratagem icons from the left sidebar to the slots
+3. **Save Profile**: Click the 💾 button and name your profile
+4. **Enable Macros**: Toggle the switch at the bottom to "Status: Enabled"
+5. **Test**: In-game, press your assigned key to execute the stratagem
 
 ## Settings
 

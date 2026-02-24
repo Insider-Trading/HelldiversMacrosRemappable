@@ -1,5 +1,5 @@
 """
-Update manager module for Helldivers Numpad Macros
+Update manager module for Helldivers Remappable Macros
 Handles update checking, downloading, and installation dialogs
 """
 

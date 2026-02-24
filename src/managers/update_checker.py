@@ -1,5 +1,5 @@
 """
-Update checker for Helldivers Numpad Macros
+Update checker for Helldivers Remappable Macros
 Checks GitHub releases for updates
 """
 

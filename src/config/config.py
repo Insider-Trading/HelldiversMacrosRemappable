@@ -1,5 +1,5 @@
 """
-Configuration module for Helldivers Numpad Macros
+Configuration module for Helldivers Remappable Macros
 Handles paths, settings, theme management, and utility functions
 """
 
@@ -160,7 +160,7 @@ def apply_theme_to_stylesheet(qss_content, base_path):
     assets_root = os.path.join(base_path, ASSETS_DIR)
     return re.sub(
         r"url\((['\"]?)assets/([^'\")]+)\1\)",
-        lambda m: f"url(\"{os.path.join(assets_root, m.group(2)).replace('\\', '/')}\")",
+        lambda m: "url(\"" + os.path.join(assets_root, m.group(2)).replace('\\', '/') + "\")",
         qss_content,
     )
 

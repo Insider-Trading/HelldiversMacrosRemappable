@@ -1,5 +1,5 @@
 """
-Dialog windows for Helldivers Numpad Macros
+Dialog windows for Helldivers Remappable Macros
 """
 
 from PyQt6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, QSlider,
@@ -136,6 +136,7 @@ class SettingsWindow(QDialog):
         self.tab_list.addItem("Notifications")
         self.tab_list.addItem("Appearance")
         self.tab_list.addItem("Windows")
+        self.tab_list.addItem("About")
         self.tab_list.itemClicked.connect(self.switch_tab)
         content_layout.addWidget(self.tab_list)
         
@@ -148,6 +149,7 @@ class SettingsWindow(QDialog):
         self._create_notifications_tab()
         self._create_appearance_tab()
         self._create_windows_tab()
+        self._create_about_tab()
         
         content_layout.addWidget(self.content_stack)
         main_layout.addLayout(content_layout)
@@ -412,6 +414,30 @@ class SettingsWindow(QDialog):
         
         windows_layout.addStretch(1)
         self.content_stack.addWidget(windows_widget)
+    
+    def _create_about_tab(self):
+        """Create about tab with credits"""
+        about_widget = QWidget()
+        about_layout = QVBoxLayout(about_widget)
+        
+        about_label = QLabel("About Helldivers Remappable Macros")
+        about_label.setObjectName("settings_label")
+        about_layout.addWidget(about_label)
+        
+        credits_text = QLabel(
+            "<p>This application is a fork of the original <b>Helldivers Numpad Macros</b> "
+            "project, created to provide accessibility for players who do not have a numpad.</p>"
+            "<p><b>Original Creator:</b> Gonçalo Estrelado<br>"
+            "<b>Original Repository:</b> <a href='https://github.com/goncaloestrelado/HelldiversMacro' style='color: #3ddc84;'>goncaloestrelado/HelldiversMacro</a></p>"
+            "<p>Special thanks to the original author for the amazing work on the macro engine and UI foundation.</p>"
+        )
+        credits_text.setWordWrap(True)
+        credits_text.setOpenExternalLinks(True)
+        credits_text.setStyleSheet("color: #ddd; font-size: 12px; line-height: 1.4;")
+        about_layout.addWidget(credits_text)
+        
+        about_layout.addStretch(1)
+        self.content_stack.addWidget(about_widget)
     
     def _create_bottom_buttons(self, main_layout):
         """Create bottom buttons layout"""

@@ -1,5 +1,5 @@
 """
-Tray manager for Helldivers Numpad Macros
+Tray manager for Helldivers Remappable Macros
 Handles system tray icon and menu
 """
 

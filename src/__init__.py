@@ -1,5 +1,5 @@
 """
-Helldivers Numpad Macros - Source Package
+Helldivers Remappable Macros - Source Package
 Main application modules organized by function
 """
 

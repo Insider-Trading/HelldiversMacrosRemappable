@@ -1,4 +1,4 @@
-# Helldivers Numpad Macros
+# Helldivers Remappable Macros
 
 This is a software to assign Stratagem codes as macros to numpad keys.
 Drag and drop from the list to the key slots.

@@ -1,5 +1,5 @@
 """
-Reusable widgets for Helldivers Numpad Macros
+Reusable widgets for Helldivers Remappable Macros
 """
 
 import time
@@ -55,15 +55,18 @@ class DraggableIcon(QWidget):
 class NumpadSlot(QWidget):
     """Numpad slot widget for assigning stratagems"""
     
-    def __init__(self, scan_code, label_text, parent_app):
+    def __init__(self, slot_id, scan_code, label_text, parent_app):
         super().__init__()
+        self.slot_id = slot_id
         self.scan_code = int(scan_code)
         self.label_text = label_text
         self.parent_app = parent_app
         self.assigned_stratagem = None
+        self.is_remapping = False
         
         self.setProperty("role", "numpad-slot")
         self.setAcceptDrops(True)
+        self.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         
         self.layout = QVBoxLayout(self)
         self.label = QLabel(label_text)
@@ -77,8 +80,12 @@ class NumpadSlot(QWidget):
         self.update_style(False)
 
     def update_style(self, assigned):
-        """Update visual style based on whether slot is assigned"""
-        if assigned:
+        """Update visual style based on whether slot is assigned or remapping"""
+        if self.is_remapping:
+            border_style, color, bg = "solid", "#3ddc84", "#102010"
+            cursor = Qt.CursorShape.WaitCursor
+            hover_border, hover_bg = "#3ddc84", "#102010"
+        elif assigned:
             border_style, color, bg = "solid", "#ffcc00", "#151515"
             cursor = Qt.CursorShape.PointingHandCursor
             hover_border, hover_bg = "#ff4444", "#201010"
@@ -95,7 +102,11 @@ class NumpadSlot(QWidget):
         )
 
     def mousePressEvent(self, event):
-        """Handle mouse press for clearing or dragging"""
+        """Handle mouse press for clearing, dragging, or remapping"""
+        if event.button() == Qt.MouseButton.MiddleButton:
+            self.start_remapping()
+            return
+
         if event.button() == Qt.MouseButton.RightButton:
             if self.assigned_stratagem:
                 self.clear_slot()
@@ -105,14 +116,88 @@ class NumpadSlot(QWidget):
             drag = QDrag(self)
             mime = QMimeData()
             mime.setText(self.assigned_stratagem)
-            mime.setData("source_slot", str(self.scan_code).encode())
+            mime.setData("source_slot", str(self.slot_id).encode())
             drag.setMimeData(mime)
             drag.setPixmap(self.grab())
             drag.exec(Qt.DropAction.MoveAction)
+
+    def start_remapping(self):
+        """Enter remapping mode"""
+        self.is_remapping = True
+        self.label.setText("Press any key...")
+        self.label.show()
+        self.svg_display.hide()
+        self.update_style(False)
+        self.setFocus()
+
+    def keyPressEvent(self, event):
+        """Capture key press for remapping"""
+        if self.is_remapping:
+            key = event.key()
+            if key == Qt.Key.Key_Escape:
+                self.cancel_remapping()
+                return
+
+            # Get scan code and key name
+            scan_code = event.nativeScanCode()
+            key_name = event.text().upper()
+            if not key_name or ord(key_name[0]) < 32:
+                # Fallback for special keys
+                key_name = self._get_key_name(key)
+
+            self.scan_code = scan_code
+            self.label_text = key_name
+            self.is_remapping = False
+            
+            if self.assigned_stratagem:
+                self.assign(self.assigned_stratagem)
+            else:
+                self.label.setText(self.label_text)
+                self.update_style(False)
+            
+            self.parent_app.on_change()
+            self.parent_app.show_status(f"Bound to {key_name}")
+        else:
+            super().keyPressEvent(event)
+
+    def cancel_remapping(self):
+        """Cancel remapping mode"""
+        self.is_remapping = False
+        if self.assigned_stratagem:
+            self.assign(self.assigned_stratagem)
+        else:
+            self.label.setText(self.label_text)
+            self.update_style(False)
+
+    def _get_key_name(self, key):
+        """Get a human-readable name for special keys"""
+        key_map = {
+            Qt.Key.Key_Return: "ENT",
+            Qt.Key.Key_Enter: "ENT",
+            Qt.Key.Key_Space: "SPC",
+            Qt.Key.Key_Tab: "TAB",
+            Qt.Key.Key_Backspace: "BS",
+            Qt.Key.Key_Delete: "DEL",
+            Qt.Key.Key_Insert: "INS",
+            Qt.Key.Key_Home: "HOME",
+            Qt.Key.Key_End: "END",
+            Qt.Key.Key_PageUp: "PGUP",
+            Qt.Key.Key_PageDown: "PGDN",
+            Qt.Key.Key_Left: "LEFT",
+            Qt.Key.Key_Right: "RGHT",
+            Qt.Key.Key_Up: "UP",
+            Qt.Key.Key_Down: "DOWN",
+            Qt.Key.Key_CapsLock: "CAPS",
+            Qt.Key.Key_Shift: "SHFT",
+            Qt.Key.Key_Control: "CTRL",
+            Qt.Key.Key_Alt: "ALT",
+        }
+        return key_map.get(key, "KEY")
     
     def mouseDoubleClickEvent(self, event):
-        """Ignore double-click events"""
-        event.ignore()
+        """Double click to start remapping"""
+        self.start_remapping()
+        event.accept()
 
     def dragEnterEvent(self, event):
         """Accept drag enter events"""

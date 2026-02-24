@@ -1,4 +1,4 @@
-# Helldivers Numpad Macros - Quick Start
+# Helldivers Remappable Macros - Quick Start
 
 ## Installation
 
@@ -7,7 +7,7 @@
 1. Download `HelldiversNumpadMacros-Setup-v1.0.0.exe` from the latest release
 2. Run the installer
 3. Follow the installation wizard
-4. The application will be installed to `C:\Program Files\Helldivers Numpad Macros`
+4. The application will be installed to `C:\Program Files\Helldivers Remappable Macros`
 5. Start menu and desktop shortcuts will be created (if selected)
 
 ### Portable Version

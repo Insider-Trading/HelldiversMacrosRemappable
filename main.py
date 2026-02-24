@@ -37,7 +37,7 @@ class StratagemApp(QMainWindow):
         self.department_expanded_state = {}  # Track which departments are expanded/collapsed
         
         self.macro_engine = MacroEngine(
-            lambda: self.slots,
+            self.get_slots_by_scan_code,
             lambda: self.global_settings,
             self.map_direction_to_key
         )
@@ -57,6 +57,10 @@ class StratagemApp(QMainWindow):
         
         if self.global_settings.get("auto_check_updates", True):
             QTimer.singleShot(1000, self.check_for_updates_startup)
+
+    def get_slots_by_scan_code(self):
+        """Return a dictionary of slots keyed by their current scan code"""
+        return {slot.scan_code: slot for slot in self.slots.values()}
 
     def initUI(self):
         """Initialize the user interface"""
@@ -305,10 +309,10 @@ class StratagemApp(QMainWindow):
         grid = QGridLayout()
         grid.setSpacing(12)
         
-        for scan_code, label, row, col, rowspan, colspan in NUMPAD_LAYOUT:
-            slot = NumpadSlot(scan_code, label, self)
+        for slot_id, scan_code, label, row, col, rowspan, colspan in NUMPAD_LAYOUT:
+            slot = NumpadSlot(slot_id, scan_code, label, self)
             grid.addWidget(slot, row, col, rowspan, colspan)
-            self.slots[scan_code] = slot
+            self.slots[str(slot_id)] = slot
         
         grid_container = QWidget()
         grid_container.setLayout(grid)
@@ -594,8 +598,14 @@ class StratagemApp(QMainWindow):
 
     def load_profile(self, path):
         """Load profile from file"""
-        for slot in self.slots.values():
-            slot.clear_slot()
+        # Reset to defaults from NUMPAD_LAYOUT first
+        for slot_id, scan_code, label, row, col, rowspan, colspan in NUMPAD_LAYOUT:
+            slot_id_str = str(slot_id)
+            if slot_id_str in self.slots:
+                self.slots[slot_id_str].clear_slot()
+                self.slots[slot_id_str].scan_code = int(scan_code)
+                self.slots[slot_id_str].label_text = label
+                self.slots[slot_id_str].label.setText(label)
         
         # Load profile using ProfileManager
         profile_name = os.path.splitext(os.path.basename(path))[0]
@@ -606,10 +616,25 @@ class StratagemApp(QMainWindow):
             self.speed_slider.setValue(data.get("speed", 20))
             self.speed_slider.blockSignals(False)
             
+            # Handle new format (bindings)
+            bindings = data.get("bindings", {})
+            for slot_id_str, binding in bindings.items():
+                if slot_id_str in self.slots:
+                    self.slots[slot_id_str].scan_code = binding.get("key", self.slots[slot_id_str].scan_code)
+                    self.slots[slot_id_str].label_text = binding.get("label", self.slots[slot_id_str].label_text)
+                    self.slots[slot_id_str].label.setText(self.slots[slot_id_str].label_text)
+
             mappings = data.get("mappings", {})
-            for code, strat in mappings.items():
-                if code in self.slots:
-                    self.slots[code].assign(strat)
+            for key, strat in mappings.items():
+                # Key could be slot_id (new) or default scan_code (old)
+                if key in self.slots: # Check if it's a slot_id (as string)
+                    self.slots[key].assign(strat)
+                else:
+                    # Legacy: search by default scan_code
+                    for sid, sc, lab, r, c, rs, cs in NUMPAD_LAYOUT:
+                        if sc == key and str(sid) in self.slots:
+                            self.slots[str(sid)].assign(strat)
+                            break
         
         self.sync_macro_hook_state()
         self.save_current_state()
@@ -619,7 +644,8 @@ class StratagemApp(QMainWindow):
         """Get the current state of the profile"""
         return {
             "speed": self.speed_slider.value(),
-            "mappings": {k: v.assigned_stratagem for k, v in self.slots.items() if v.assigned_stratagem}
+            "mappings": {str(k): v.assigned_stratagem for k, v in self.slots.items() if v.assigned_stratagem},
+            "bindings": {str(k): {"key": v.scan_code, "label": v.label_text} for k, v in self.slots.items()}
         }
 
     def save_current_state(self):
@@ -631,7 +657,9 @@ class StratagemApp(QMainWindow):
         """Check if there are unsaved changes"""
         if self.saved_state is None:
             current = self.get_current_state()
-            return current["speed"] != 20 or bool(current["mappings"])
+            return current["speed"] != 20 or bool(current["mappings"]) or any(
+                v.scan_code != int(NUMPAD_LAYOUT[int(k)][1]) for k, v in self.slots.items()
+            )
         current = self.get_current_state()
         return current != self.saved_state
 
@@ -658,9 +686,14 @@ class StratagemApp(QMainWindow):
     def undo_changes(self):
         """Undo changes to the last saved state"""
         if self.saved_state is None:
-            # Fresh profile - clear everything
-            for slot in self.slots.values():
-                slot.clear_slot()
+            # Fresh profile - clear everything and reset to defaults
+            for slot_id, scan_code, label, row, col, rowspan, colspan in NUMPAD_LAYOUT:
+                slot_id_str = str(slot_id)
+                if slot_id_str in self.slots:
+                    self.slots[slot_id_str].clear_slot()
+                    self.slots[slot_id_str].scan_code = int(scan_code)
+                    self.slots[slot_id_str].label_text = label
+                    self.slots[slot_id_str].label.setText(label)
             self.speed_slider.blockSignals(True)
             self.speed_slider.setValue(20)
             self.speed_slider.blockSignals(False)
@@ -668,14 +701,23 @@ class StratagemApp(QMainWindow):
             # Restore to saved state
             for slot in self.slots.values():
                 slot.clear_slot()
+            
             speed = self.saved_state.get("speed", 20)
-            mappings = self.saved_state.get("mappings", {})
             self.speed_slider.blockSignals(True)
             self.speed_slider.setValue(speed)
             self.speed_slider.blockSignals(False)
-            for code, strat in mappings.items():
-                if code in self.slots:
-                    self.slots[code].assign(strat)
+            
+            bindings = self.saved_state.get("bindings", {})
+            for slot_id_str, binding in bindings.items():
+                if slot_id_str in self.slots:
+                    self.slots[slot_id_str].scan_code = binding.get("key")
+                    self.slots[slot_id_str].label_text = binding.get("label")
+                    self.slots[slot_id_str].label.setText(self.slots[slot_id_str].label_text)
+
+            mappings = self.saved_state.get("mappings", {})
+            for slot_id_str, strat in mappings.items():
+                if slot_id_str in self.slots:
+                    self.slots[slot_id_str].assign(strat)
         self.show_status("Changes undone")
         self.update_undo_state()
 

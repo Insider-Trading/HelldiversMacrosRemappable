@@ -1,5 +1,5 @@
 """
-Profile manager for Helldivers Numpad Macros
+Profile manager for Helldivers Remappable Macros
 Handles loading, saving, and managing profiles
 """
 
@@ -81,6 +81,10 @@ class ProfileManager:
             if not isinstance(mappings, dict):
                 mappings = {}
 
+            bindings = data.get("bindings", {})
+            if not isinstance(bindings, dict):
+                bindings = {}
+
             migrated = False
             updated_mappings = {}
             for code, strat in mappings.items():
@@ -95,7 +99,8 @@ class ProfileManager:
 
             return {
                 "speed": speed,
-                "mappings": updated_mappings
+                "mappings": updated_mappings,
+                "bindings": bindings
             }
         except Exception as e:
             print(f"[ProfileManager] Error loading profile from path: {e}")

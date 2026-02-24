@@ -35,13 +35,13 @@ VSVersionInfo(
     StringFileInfo(
       [StringTable(
         u'040904B0',
-        [StringStruct(u'CompanyName', u'HelldiversMacro'),
-        StringStruct(u'FileDescription', u'Helldivers 2 Stratagem Macro Tool'),
+        [StringStruct(u'CompanyName', u'HelldiversMacroRemappable'),
+        StringStruct(u'FileDescription', u'Helldivers 2 Stratagem Macro Tool (Remappable)'),
         StringStruct(u'FileVersion', u'{version_string}'),
-        StringStruct(u'InternalName', u'HelldiversNumpadMacros'),
+        StringStruct(u'InternalName', u'HelldiversRemappableMacros'),
         StringStruct(u'LegalCopyright', u''),
-        StringStruct(u'OriginalFilename', u'HelldiversNumpadMacros.exe'),
-        StringStruct(u'ProductName', u'Helldivers Numpad Macros'),
+        StringStruct(u'OriginalFilename', u'HelldiversRemappableMacros.exe'),
+        StringStruct(u'ProductName', u'Helldivers Remappable Macros'),
         StringStruct(u'ProductVersion', u'{version_string}')])
       ]),
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])

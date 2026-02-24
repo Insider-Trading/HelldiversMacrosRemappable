@@ -1,5 +1,5 @@
 """
-Macro engine for Helldivers Numpad Macros
+Macro engine for Helldivers Remappable Macros
 Handles keyboard hooking and macro execution
 """
 
@@ -18,7 +18,7 @@ class MacroEngine:
         Initialize macro engine
         
         Args:
-            get_slots_callback: Function that returns dict of slots
+            get_slots_callback: Function that returns dict of slots keyed by scan code
             get_settings_callback: Function that returns global settings dict
             map_direction_callback: Function that maps direction to key
         """
@@ -59,16 +59,15 @@ class MacroEngine:
             False to suppress the key, True to allow it
         """
         if event.event_type == keyboard.KEY_DOWN:
-            slots = self.get_slots()
-            slot = slots.get(str(event.scan_code))
+            slots_by_scan = self.get_slots()
+            slot = slots_by_scan.get(event.scan_code)
             
             if slot and slot.assigned_stratagem:
-                if getattr(event, 'is_keypad', True):
-                    stratagem_name = slot.assigned_stratagem
-                    seq = STRATAGEMS.get(stratagem_name)
-                    if seq:
-                        slot.run_macro(stratagem_name, seq, slot.label_text)
-                    return False  # Suppress the keypad key
+                stratagem_name = slot.assigned_stratagem
+                seq = STRATAGEMS.get(stratagem_name)
+                if seq:
+                    slot.run_macro(stratagem_name, seq, slot.label_text)
+                return False  # Suppress the key
         
         return True  # Allow the key through
     

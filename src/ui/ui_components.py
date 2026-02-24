@@ -1,5 +1,5 @@
 """
-UI components module for Helldivers Numpad Macros
+UI components module for Helldivers Remappable Macros
 DEPRECATED: This module is kept for backwards compatibility only.
 All components have been moved to:
 - dialogs.py: TestEnvironment, SettingsDialog, SettingsWindow
